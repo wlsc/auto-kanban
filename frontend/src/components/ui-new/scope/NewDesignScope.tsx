@@ -1,5 +1,4 @@
-import { ReactNode, useState, useRef, useEffect } from 'react';
-import { usePostHog } from 'posthog-js/react';
+import { ReactNode, useState } from 'react';
 import { PortalContainerContext } from '@/contexts/PortalContainerContext';
 import {
   WorkspaceProvider,
@@ -51,15 +50,6 @@ function KeyboardShortcutsHandler() {
 
 export function NewDesignScope({ children }: NewDesignScopeProps) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
-  const posthog = usePostHog();
-  const hasTracked = useRef(false);
-
-  useEffect(() => {
-    if (!hasTracked.current) {
-      posthog?.capture('ui_new_accessed');
-      hasTracked.current = true;
-    }
-  }, [posthog]);
 
   return (
     <div ref={setContainer} className="new-design h-full">
