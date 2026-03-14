@@ -15,7 +15,7 @@ import { useProjects } from '@/hooks/useProjects';
 export function ProjectList() {
   const navigate = useNavigate();
   const { t } = useTranslation('projects');
-  const { projects, isLoading, error: projectsError } = useProjects();
+  const { projects, isLoading } = useProjects();
   const [error, setError] = useState('');
   const [focusedProjectId, setFocusedProjectId] = useState<string | null>(null);
 
@@ -60,12 +60,10 @@ export function ProjectList() {
         </Button>
       </div>
 
-      {(error || projectsError) && (
+      {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error || projectsError?.message || t('errors.fetchFailed')}
-          </AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
