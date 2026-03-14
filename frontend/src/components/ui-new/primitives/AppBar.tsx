@@ -144,7 +144,7 @@ export function AppBar({
           onCreateOrg={onCreateOrg}
         />
         <AppBarSocialLink
-          href="https://github.com/BloopAI/vibe-kanban"
+          href="https://github.com/wlscdev/auto-kanban"
           label="Star on GitHub"
           iconPath={siGithub.path}
           badge={

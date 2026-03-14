@@ -34,7 +34,7 @@ pub struct DirectoryListResponse {
 #[derive(Debug, Serialize, TS)]
 pub struct DirectoryEntry {
     pub name: String,
-    pub path: PathBuf,
+    pub path: String,
     pub is_directory: bool,
     pub is_git_repo: bool,
     pub last_modified: Option<u64>,
@@ -213,7 +213,7 @@ impl FilesystemService {
             None => return Ok(vec![]),
         };
         let skip_dirs = Self::get_directories_to_skip();
-        let vibe_kanban_temp_dir = utils::path::get_vibe_kanban_temp_dir();
+        let auto_kanban_temp_dir = utils::path::get_auto_kanban_temp_dir();
         let mut walker_builder = WalkBuilder::new(base_dir);
         walker_builder
             .follow_links(false)
@@ -234,10 +234,10 @@ impl FilesystemService {
                         return false;
                     }
 
-                    // Skip vibe-kanban temp directory and all subdirectories
+                    // Skip auto-kanban temp directory and all subdirectories
                     // Normalize to handle macOS /private/var vs /var aliasing
                     if utils::path::normalize_macos_private_alias(path)
-                        .starts_with(&vibe_kanban_temp_dir)
+                        .starts_with(&auto_kanban_temp_dir)
                     {
                         return false;
                     }
@@ -277,7 +277,7 @@ impl FilesystemService {
                     .map(|t| t.elapsed().unwrap_or_default().as_secs());
                 Some(DirectoryEntry {
                     name: name.to_string(),
-                    path: entry.into_path(),
+                    path: entry.into_path().to_string_lossy().into_owned(),
                     is_directory: true,
                     is_git_repo: true,
                     last_modified,
@@ -343,7 +343,7 @@ impl FilesystemService {
 
                 directory_entries.push(DirectoryEntry {
                     name: name.to_string(),
-                    path,
+                    path: path.to_string_lossy().into_owned(),
                     is_directory,
                     is_git_repo,
                     last_modified: None,

@@ -152,7 +152,7 @@ pub trait Deployment: Clone + Send + Sync + 'static {
                 for repo in repos.into_iter().take(3) {
                     // Generate clean project name from path
                     let project_name = repo.name.clone();
-                    let repo_path = repo.path.to_string_lossy().to_string();
+                    let repo_path = repo.path.clone();
 
                     let create_data = CreateProject {
                         name: project_name,
@@ -188,7 +188,7 @@ pub trait Deployment: Clone + Send + Sync + 'static {
                         Err(e) => {
                             tracing::warn!(
                                 "Failed to auto-create project from {}: {}",
-                                repo.path.display(),
+                                repo.path,
                                 e
                             );
                         }

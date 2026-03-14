@@ -18,7 +18,7 @@ const QA_REPOS: &[(&str, &str)] = &[
 
 /// Persistent directory for QA repos - survives server restarts
 static QA_REPOS_DIR: Lazy<PathBuf> = Lazy::new(|| {
-    let dir = utils::path::get_vibe_kanban_temp_dir().join("qa-repos");
+    let dir = utils::path::get_auto_kanban_temp_dir().join("qa-repos");
     if let Err(e) = std::fs::create_dir_all(&dir) {
         warn!("Failed to create QA repos directory: {}", e);
     }
@@ -49,7 +49,7 @@ pub fn get_qa_repos() -> Result<Vec<DirectoryEntry>, FilesystemError> {
 
                 Some(DirectoryEntry {
                     name: name.to_string(),
-                    path: repo_path,
+                    path: repo_path.to_string_lossy().into_owned(),
                     is_directory: true,
                     is_git_repo: true,
                     last_modified,

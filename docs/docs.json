@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Vibe Kanban",
+  "name": "Auto Kanban",
   "description": "A kanban board for developers to track coding tasks with AI coding agents",
   "appearance": {
     "default": "light"
@@ -133,7 +133,7 @@
           "integrations/azure-repos-integration",
           "integrations/vscode-extension",
           "integrations/mcp-server-configuration",
-          "integrations/vibe-kanban-mcp-server"
+          "integrations/auto-kanban-mcp-server"
         ]
       },
       {
@@ -152,13 +152,13 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://github.com/BloopAI/vibe-kanban"
+        "href": "https://github.com/wlscdev/auto-kanban"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Get Started",
-      "href": "https://vibekanban.com/docs"
+      "href": "https://autokanban.dev/docs"
     }
   },
   "contextual": {
@@ -181,8 +181,8 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/BloopAI/vibe-kanban",
-      "x": "https://x.com/vibekanban"
+      "github": "https://github.com/wlscdev/auto-kanban",
+      "x": "https://x.com/autokanban"
     }
   }
 }

@@ -43,8 +43,8 @@ echo "🔍 Detected platform: $PLATFORM"
 echo "🔧 Using target directory: $CARGO_TARGET_DIR"
 
 # Set API base URL for remote features
-export VK_SHARED_API_BASE="https://api.vibekanban.com"
-export VITE_VK_SHARED_API_BASE="https://api.vibekanban.com"
+export AK_SHARED_API_BASE="https://api.autokanban.dev"
+export VITE_AK_SHARED_API_BASE="https://api.autokanban.dev"
 
 echo "🧹 Cleaning previous builds..."
 rm -rf npx-cli/dist
@@ -60,28 +60,28 @@ cargo build --release --bin mcp_task_server --manifest-path Cargo.toml
 echo "📦 Creating distribution package..."
 
 # Copy the main binary
-cp ${CARGO_TARGET_DIR}/release/server vibe-kanban
-zip -q vibe-kanban.zip vibe-kanban
-rm -f vibe-kanban 
-mv vibe-kanban.zip npx-cli/dist/$PLATFORM/vibe-kanban.zip
+cp ${CARGO_TARGET_DIR}/release/server auto-kanban
+zip -q auto-kanban.zip auto-kanban
+rm -f auto-kanban 
+mv auto-kanban.zip npx-cli/dist/$PLATFORM/auto-kanban.zip
 
 # Copy the MCP binary
-cp ${CARGO_TARGET_DIR}/release/mcp_task_server vibe-kanban-mcp
-zip -q vibe-kanban-mcp.zip vibe-kanban-mcp
-rm -f vibe-kanban-mcp
-mv vibe-kanban-mcp.zip npx-cli/dist/$PLATFORM/vibe-kanban-mcp.zip
+cp ${CARGO_TARGET_DIR}/release/mcp_task_server auto-kanban-mcp
+zip -q auto-kanban-mcp.zip auto-kanban-mcp
+rm -f auto-kanban-mcp
+mv auto-kanban-mcp.zip npx-cli/dist/$PLATFORM/auto-kanban-mcp.zip
 
 # Copy the Review CLI binary
-cp ${CARGO_TARGET_DIR}/release/review vibe-kanban-review
-zip -q vibe-kanban-review.zip vibe-kanban-review
-rm -f vibe-kanban-review
-mv vibe-kanban-review.zip npx-cli/dist/$PLATFORM/vibe-kanban-review.zip
+cp ${CARGO_TARGET_DIR}/release/review auto-kanban-review
+zip -q auto-kanban-review.zip auto-kanban-review
+rm -f auto-kanban-review
+mv auto-kanban-review.zip npx-cli/dist/$PLATFORM/auto-kanban-review.zip
 
 echo "✅ Build complete!"
 echo "📁 Files created:"
-echo "   - npx-cli/dist/$PLATFORM/vibe-kanban.zip"
-echo "   - npx-cli/dist/$PLATFORM/vibe-kanban-mcp.zip"
-echo "   - npx-cli/dist/$PLATFORM/vibe-kanban-review.zip"
+echo "   - npx-cli/dist/$PLATFORM/auto-kanban.zip"
+echo "   - npx-cli/dist/$PLATFORM/auto-kanban-mcp.zip"
+echo "   - npx-cli/dist/$PLATFORM/auto-kanban-review.zip"
 echo ""
 echo "🚀 To test locally, run:"
 echo "   cd npx-cli && node bin/cli.js"

@@ -143,9 +143,14 @@ const handleApiResponseAsResult = async <T, E>(
     let errorMessage = `Request failed with status ${response.status}`;
 
     try {
-      const errorData = await response.json();
-      if (errorData.message) {
-        errorMessage = errorData.message;
+      const text = await response.text();
+      try {
+        const errorData = JSON.parse(text);
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        errorMessage = text || response.statusText || errorMessage;
       }
     } catch {
       errorMessage = response.statusText || errorMessage;
@@ -178,12 +183,17 @@ export const handleApiResponse = async <T, E = T>(
     let errorMessage = `Request failed with status ${response.status}`;
 
     try {
-      const errorData = await response.json();
-      if (errorData.message) {
-        errorMessage = errorData.message;
+      const text = await response.text();
+      try {
+        const errorData = JSON.parse(text);
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        errorMessage = text || response.statusText || errorMessage;
       }
     } catch {
-      // Fallback to status text if JSON parsing fails
+      // Fallback to status text if reading body fails
       errorMessage = response.statusText || errorMessage;
     }
 

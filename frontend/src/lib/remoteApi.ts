@@ -4,7 +4,7 @@ import type {
 } from 'shared/remote-types';
 import { tokenManager } from './auth/tokenManager';
 
-export const REMOTE_API_URL = import.meta.env.VITE_VK_SHARED_API_BASE || '';
+export const REMOTE_API_URL = import.meta.env.VITE_AK_SHARED_API_BASE || '';
 
 export const makeRequest = async (
   path: string,
