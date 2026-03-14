@@ -56,7 +56,7 @@ const FolderPickerDialogImpl = NiceModal.create<FolderPickerDialogProps>(
     useEffect(() => {
       if (modal.visible) {
         setManualPath(value);
-        loadDirectory();
+        loadDirectory(value || undefined);
       }
     }, [modal.visible, value]);
 
@@ -81,6 +81,25 @@ const FolderPickerDialogImpl = NiceModal.create<FolderPickerDialogProps>(
           setManualPath(newPath);
         }
       } catch (err) {
+        // If a specific path failed, retry with the home directory (no path)
+        if (path) {
+          try {
+            const result: DirectoryListResponse =
+              await fileSystemApi.list(undefined);
+            if (result && typeof result === 'object') {
+              const entries = Array.isArray(result.entries)
+                ? result.entries
+                : [];
+              setEntries(entries);
+              const newPath = result.current_path || '';
+              setCurrentPath(newPath);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // Fall through to show original error
+          }
+        }
         setError(
           err instanceof Error ? err.message : 'Failed to load directory'
         );
