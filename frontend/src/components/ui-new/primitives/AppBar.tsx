@@ -4,7 +4,7 @@ import {
   SpinnerIcon,
   StarIcon,
 } from '@phosphor-icons/react';
-import { siDiscord, siGithub } from 'simple-icons';
+import { siGithub } from 'simple-icons';
 import { cn } from '@/lib/utils';
 import type { OrganizationWithRole } from 'shared/types';
 import type { Project as RemoteProject } from 'shared/remote-types';
@@ -12,7 +12,7 @@ import { AppBarButton } from './AppBarButton';
 import { AppBarSocialLink } from './AppBarSocialLink';
 import { AppBarUserPopoverContainer } from '../containers/AppBarUserPopoverContainer';
 import { Tooltip } from './Tooltip';
-import { useDiscordOnlineCount } from '@/hooks/useDiscordOnlineCount';
+
 import { useGitHubStars } from '@/hooks/useGitHubStars';
 
 function formatStarCount(count: number): string {
@@ -61,7 +61,6 @@ export function AppBar({
   isSignedIn,
   isLoadingProjects,
 }: AppBarProps) {
-  const { data: onlineCount } = useDiscordOnlineCount();
   const { data: starCount } = useGitHubStars();
 
   return (
@@ -136,7 +135,7 @@ export function AppBar({
         </Tooltip>
       )}
 
-      {/* Bottom section: User popover + GitHub + Discord */}
+      {/* Bottom section: User popover + GitHub */}
       <div className="mt-auto pt-base flex flex-col items-center gap-4">
         <AppBarUserPopoverContainer
           organizations={organizations}
@@ -155,14 +154,6 @@ export function AppBar({
                 {formatStarCount(starCount)}
               </>
             )
-          }
-        />
-        <AppBarSocialLink
-          href="https://discord.gg/AC4nwVtJM3"
-          label="Join our Discord"
-          iconPath={siDiscord.path}
-          badge={
-            onlineCount != null && (onlineCount > 999 ? '999+' : onlineCount)
           }
         />
       </div>

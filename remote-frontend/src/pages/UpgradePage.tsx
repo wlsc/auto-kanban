@@ -186,7 +186,6 @@ export default function UpgradePage() {
                 "2-49 users",
                 "All Basic features",
                 "99.5% SLA",
-                "Discord support",
               ]}
               popular
               cta="Subscribe"
