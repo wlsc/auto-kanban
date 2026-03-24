@@ -19,6 +19,7 @@ import {
   Brain,
   CheckSquare,
   ChevronDown,
+  Clock,
   Hammer,
   Edit,
   Eye,
@@ -42,6 +43,8 @@ import {
   type ScriptType,
 } from '@/components/dialogs/scripts/ScriptFixerDialog';
 import { useAttemptRepo } from '@/hooks/useAttemptRepo';
+import { formatDuration } from '@/utils/date';
+import { PROCESS_COMPLETE_PREFIX } from '@/hooks/useConversationHistory/constants';
 
 type Props = {
   entry: NormalizedEntry | ProcessStartPayload;
@@ -714,6 +717,22 @@ function DisplayConversationEntry({
 
   const { isProcessGreyed } = useRetryUi();
   const greyed = isProcessGreyed(executionProcessId);
+
+  // Detect process_complete synthetic entries (system_message with special prefix)
+  if (
+    isNormalizedEntry(entry) &&
+    entry.entry_type.type === 'system_message' &&
+    entry.content.startsWith(PROCESS_COMPLETE_PREFIX)
+  ) {
+    const payload = entry.content.slice(PROCESS_COMPLETE_PREFIX.length);
+    const [startedAt, completedAt] = payload.split('|');
+    return (
+      <div className="flex items-center gap-1.5 px-4 py-2 text-xs text-muted-foreground">
+        <Clock className="h-3 w-3" />
+        <span>{formatDuration(startedAt, completedAt)}</span>
+      </div>
+    );
+  }
 
   if (isProcessStart(entry)) {
     return (

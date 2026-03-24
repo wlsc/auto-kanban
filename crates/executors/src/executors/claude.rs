@@ -51,9 +51,9 @@ use crate::{
 
 fn base_command(claude_code_router: bool) -> &'static str {
     if claude_code_router {
-        "npx -y @musistudio/claude-code-router@1.0.66 code"
+        "npx -y @musistudio/claude-code-router@latest code"
     } else {
-        "npx -y @anthropic-ai/claude-code@2.1.32"
+        "npx -y @anthropic-ai/claude-code@latest"
     }
 }
 
@@ -2375,6 +2375,7 @@ mod tests {
                 base_command_override: None,
                 additional_params: None,
                 env: None,
+                version: None,
             },
             approvals_service: None,
             disable_api_key: None,

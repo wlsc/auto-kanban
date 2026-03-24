@@ -3,6 +3,8 @@ import type { PatchTypeWithKey } from './types';
 export const MIN_INITIAL_ENTRIES = 10;
 export const REMAINING_BATCH_SIZE = 50;
 
+export const PROCESS_COMPLETE_PREFIX = '@@PROCESS_COMPLETE@@';
+
 export const makeLoadingPatch = (
   executionProcessId: string
 ): PatchTypeWithKey => ({
@@ -15,6 +17,23 @@ export const makeLoadingPatch = (
     timestamp: null,
   },
   patchKey: `${executionProcessId}:loading`,
+  executionProcessId,
+});
+
+export const makeProcessCompletePatch = (
+  executionProcessId: string,
+  startedAt: string,
+  completedAt: string
+): PatchTypeWithKey => ({
+  type: 'NORMALIZED_ENTRY',
+  content: {
+    entry_type: {
+      type: 'system_message',
+    },
+    content: `${PROCESS_COMPLETE_PREFIX}${startedAt}|${completedAt}`,
+    timestamp: null,
+  },
+  patchKey: `${executionProcessId}:complete`,
   executionProcessId,
 });
 

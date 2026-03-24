@@ -19,6 +19,7 @@ import type {
 } from './types';
 import {
   makeLoadingPatch,
+  makeProcessCompletePatch,
   MIN_INITIAL_ENTRIES,
   nextActionPatch,
   REMAINING_BATCH_SIZE,
@@ -248,6 +249,21 @@ export const useConversationHistoryOld = ({
 
             if (isProcessRunning && !hasPendingApprovalEntry) {
               entries.push(makeLoadingPatch(p.executionProcess.id));
+            }
+
+            if (!isProcessRunning) {
+              const liveProcess = getLiveExecutionProcess(
+                p.executionProcess.id
+              );
+              if (liveProcess?.completed_at) {
+                entries.push(
+                  makeProcessCompletePatch(
+                    p.executionProcess.id,
+                    liveProcess.started_at,
+                    liveProcess.completed_at
+                  )
+                );
+              }
             }
           } else if (
             p.executionProcess.executor_action.typ.type === 'ScriptRequest'

@@ -60,6 +60,12 @@ pub struct CmdOverrides {
     )]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub env: Option<HashMap<String, String>>,
+    #[schemars(
+        title = "Version",
+        description = "Pin a specific package version instead of using latest (e.g. \"2.1.32\")"
+    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS, JsonSchema)]
@@ -181,7 +187,12 @@ pub fn apply_overrides(
     overrides: &CmdOverrides,
 ) -> Result<CommandBuilder, CommandBuildError> {
     let builder = if let Some(ref base) = overrides.base_command_override {
+        // Full override takes precedence — no version substitution
         builder.override_base(base.clone())
+    } else if let Some(ref version) = overrides.version {
+        // Replace @latest with @{version} in the default base command
+        let new_base = builder.base.replace("@latest", &format!("@{version}"));
+        builder.override_base(new_base)
     } else {
         builder
     };

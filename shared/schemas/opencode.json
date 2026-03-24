@@ -68,6 +68,14 @@
       "additionalProperties": {
         "type": "string"
       }
+    },
+    "version": {
+      "title": "Version",
+      "description": "Pin a specific package version instead of using latest (e.g. \"2.1.32\")",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "type": "object"

@@ -67,9 +67,6 @@ async fn main() -> Result<(), AutoKanbanError> {
         .backfill_repo_names()
         .await
         .map_err(DeploymentError::from)?;
-    deployment
-        .track_if_analytics_allowed("session_start", serde_json::json!({}))
-        .await;
     // Pre-warm file search cache for most active projects
     let deployment_for_cache = deployment.clone();
     tokio::spawn(async move {

@@ -14,6 +14,20 @@ export function formatDateShortWithTime(dateString: string): string {
 /**
  * Format a date string as a relative time (e.g., "just now", "5m ago", "2h ago", "3d ago").
  */
+export function formatDuration(startIso: string, endIso?: string): string {
+  const start = new Date(startIso).getTime();
+  const end = endIso ? new Date(endIso).getTime() : Date.now();
+  const totalSeconds = Math.max(0, Math.floor((end - start) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [
+    String(hours).padStart(2, '0'),
+    String(minutes).padStart(2, '0'),
+    String(seconds).padStart(2, '0'),
+  ].join(':');
+}
+
 export function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
