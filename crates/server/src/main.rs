@@ -106,16 +106,19 @@ async fn main() -> Result<(), AutoKanbanError> {
         if let Err(e) = write_port_file(actual_port).await {
             tracing::warn!("Failed to write port file: {}", e);
         }
-        tracing::info!("Opening browser...");
-        tokio::spawn(async move {
-            if let Err(e) = open_browser(&format!("http://127.0.0.1:{actual_port}")).await {
-                tracing::warn!(
-                    "Failed to open browser automatically: {}. Please open http://127.0.0.1:{} manually.",
-                    e,
-                    actual_port
-                );
-            }
-        });
+        // Skip browser open when BACKEND_PORT is set (running behind Vite dev proxy)
+        if std::env::var("BACKEND_PORT").is_err() {
+            tracing::info!("Opening browser...");
+            tokio::spawn(async move {
+                if let Err(e) = open_browser(&format!("http://127.0.0.1:{actual_port}")).await {
+                    tracing::warn!(
+                        "Failed to open browser automatically: {}. Please open http://127.0.0.1:{} manually.",
+                        e,
+                        actual_port
+                    );
+                }
+            });
+        }
     }
 
     axum::serve(listener, app_router)

@@ -22,6 +22,8 @@
     "backend:dev": "BACKEND_PORT=$(node scripts/setup-dev-environment.js backend) pnpm run backend:dev:watch",
     "backend:check": "cargo check",
     "backend:dev:watch": "DISABLE_WORKTREE_CLEANUP=1 RUST_LOG=debug cargo watch -w crates -x 'run --bin server'",
+    "backend:dev:watch:release": "DISABLE_WORKTREE_CLEANUP=1 RUST_LOG=debug cargo watch -w crates -x 'run --release --bin server'",
+    "dev:release": "export FRONTEND_PORT=$(node scripts/setup-dev-environment.js frontend) && export BACKEND_PORT=$(node scripts/setup-dev-environment.js backend) && export AK_ALLOWED_ORIGINS=\"http://localhost:${FRONTEND_PORT}\" && export VITE_AK_SHARED_API_BASE=${AK_SHARED_API_BASE:-} && concurrently \"pnpm run backend:dev:watch:release\" \"pnpm run frontend:dev\"",
     "dev:qa": "export FRONTEND_PORT=$(node scripts/setup-dev-environment.js frontend) && export BACKEND_PORT=$(node scripts/setup-dev-environment.js backend) && export AK_ALLOWED_ORIGINS=\"http://localhost:${FRONTEND_PORT}\" && export VITE_AK_SHARED_API_BASE=${AK_SHARED_API_BASE:-} && concurrently \"pnpm run backend:dev:watch:qa\" \"pnpm run frontend:dev\"",
     "generate-types": "cargo run --bin generate_types",
     "generate-types:check": "cargo run --bin generate_types -- --check",

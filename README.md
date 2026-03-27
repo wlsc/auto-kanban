@@ -79,7 +79,15 @@ pnpm i
 pnpm run dev
 ```
 
-This will start the backend. A blank DB will be copied from the `dev_assets_seed` folder.
+This will start the backend with a blank DB copied from the `dev_assets_seed` folder.
+
+To run with a **release build** (uses your production database and optimized compilation):
+
+```bash
+pnpm run dev:release
+```
+
+> **Note:** `dev:release` connects to the same database as `npx auto-kanban` (`~/Library/Application Support/ai.bloop.auto-kanban/` on macOS). Any changes made will affect your real data.
 
 ### Building the frontend
 
