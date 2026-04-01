@@ -285,7 +285,7 @@ const WYSIWYGEditor = forwardRef<WYSIWYGEditorRef, WysiwygProps>(
     );
 
     const editorContent = (
-      <div className="wysiwyg text-base">
+      <div className="wysiwyg text-base flex flex-col flex-1 min-h-0">
         <TaskAttemptContext.Provider value={taskAttemptId}>
           <TaskContext.Provider value={taskId}>
             <LocalImagesContext.Provider value={localImages ?? []}>
@@ -299,7 +299,7 @@ const WYSIWYGEditor = forwardRef<WYSIWYGEditorRef, WysiwygProps>(
                   transformers={extendedTransformers}
                 />
                 {!disabled && <ToolbarPlugin />}
-                <div className="relative">
+                <div className="relative flex-1 min-h-0">
                   <RichTextPlugin
                     contentEditable={
                       <ContentEditable

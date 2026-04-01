@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import WYSIWYGEditor from '@/components/ui/wysiwyg';
+import type { WYSIWYGEditorRef } from '@/components/ui/wysiwyg';
 import type { LocalImageMetadata } from '@/components/ui/wysiwyg/context/task-attempt-context';
 import BranchSelector from '@/components/tasks/BranchSelector';
 import RepoBranchSelector from '@/components/tasks/RepoBranchSelector';
@@ -101,6 +102,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
   );
   const [showDiscardWarning, setShowDiscardWarning] = useState(false);
   const forceCreateOnlyRef = useRef(false);
+  const editorRef = useRef<WYSIWYGEditorRef>(null);
 
   const { data: taskImages } = useTaskImages(
     editMode ? props.task.id : undefined
@@ -403,10 +405,11 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
         open={modal.visible}
         onOpenChange={handleDialogClose}
         uncloseable={showDiscardWarning}
+        className="max-w-5xl w-[90vw] h-[80vh] max-h-[90vh] min-w-[400px] min-h-[350px] resize overflow-hidden"
       >
         <div
           {...getRootProps()}
-          className="h-full flex flex-col gap-4 p-4 relative min-h-0"
+          className="flex-1 flex flex-col gap-4 p-4 relative min-h-0 overflow-hidden"
         >
           <input {...getInputProps()} />
           {/* Drag overlay */}
@@ -439,10 +442,16 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           {/* Description */}
           <form.Field name="description">
             {(field) => (
-              <div className="border p-3">
+              <div
+                className="border p-3 flex-1 min-h-0 flex flex-col overflow-hidden cursor-text"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) editorRef.current?.focus();
+                }}
+              >
                 <WYSIWYGEditor
+                  ref={editorRef}
                   placeholder={t('taskFormDialog.descriptionPlaceholder')}
-                  className="w-full h-24 overflow-auto"
+                  className="w-full flex-1 min-h-[100px] overflow-auto"
                   value={field.state.value}
                   onChange={(desc) => field.handleChange(desc)}
                   disabled={isSubmitting}

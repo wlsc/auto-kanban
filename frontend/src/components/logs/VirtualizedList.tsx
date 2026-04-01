@@ -6,7 +6,7 @@ import {
   VirtuosoMessageListMethods,
   VirtuosoMessageListProps,
 } from '@virtuoso.dev/message-list';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import DisplayConversationEntry from '../NormalizedConversation/DisplayConversationEntry';
 import { useEntries } from '@/contexts/EntriesContext';
@@ -15,7 +15,7 @@ import {
   PatchTypeWithKey,
   useConversationHistory,
 } from '@/hooks/useConversationHistory';
-import { Loader2 } from 'lucide-react';
+import { ArrowUp, Loader2 } from 'lucide-react';
 import { TaskWithAttemptStatus } from 'shared/types';
 import type { WorkspaceWithSession } from '@/types/attempt';
 import { ApprovalFormProvider } from '@/contexts/ApprovalFormContext';
@@ -115,23 +115,52 @@ const VirtualizedList = ({ attempt, task }: VirtualizedListProps) => {
     [attempt, task]
   );
 
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+
+  const handleListScroll = useCallback(
+    (location: { listOffset: number }) => {
+      setShowScrollToTop(location.listOffset < -300);
+    },
+    []
+  );
+
+  const handleScrollToTop = useCallback(() => {
+    messageListRef.current?.scrollToItem({
+      index: 0,
+      align: 'start',
+      behavior: 'smooth',
+    });
+  }, []);
+
   return (
     <ApprovalFormProvider>
-      <VirtuosoMessageListLicense
-        licenseKey={import.meta.env.VITE_PUBLIC_REACT_VIRTUOSO_LICENSE_KEY}
-      >
-        <VirtuosoMessageList<PatchTypeWithKey, MessageListContext>
-          ref={messageListRef}
-          className="flex-1"
-          data={channelData}
-          initialLocation={INITIAL_TOP_ITEM}
-          context={messageListContext}
-          computeItemKey={computeItemKey}
-          ItemContent={ItemContent}
-          Header={() => <div className="h-2"></div>}
-          Footer={() => <div className="h-2"></div>}
-        />
-      </VirtuosoMessageListLicense>
+      <div className="relative flex-1 flex flex-col min-h-0">
+        <VirtuosoMessageListLicense
+          licenseKey={import.meta.env.VITE_PUBLIC_REACT_VIRTUOSO_LICENSE_KEY}
+        >
+          <VirtuosoMessageList<PatchTypeWithKey, MessageListContext>
+            ref={messageListRef}
+            onScroll={handleListScroll}
+            className="flex-1"
+            data={channelData}
+            initialLocation={INITIAL_TOP_ITEM}
+            context={messageListContext}
+            computeItemKey={computeItemKey}
+            ItemContent={ItemContent}
+            Header={() => <div className="h-2"></div>}
+            Footer={() => <div className="h-2"></div>}
+          />
+        </VirtuosoMessageListLicense>
+        {showScrollToTop && !loading && (
+          <button
+            onClick={handleScrollToTop}
+            className="absolute bottom-4 right-6 z-10 p-2 rounded-full bg-muted/80 backdrop-blur-sm border shadow-sm hover:bg-muted transition-opacity"
+            aria-label="Scroll to task definition"
+          >
+            <ArrowUp size={16} />
+          </button>
+        )}
+      </div>
       {loading && (
         <div className="float-left top-0 left-0 w-full h-full bg-primary flex flex-col gap-2 justify-center items-center">
           <Loader2 className="h-8 w-8 animate-spin" />

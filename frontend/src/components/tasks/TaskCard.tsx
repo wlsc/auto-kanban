@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { KanbanCard } from '@/components/ui/shadcn-io/kanban';
 import { Link, Loader2, XCircle } from 'lucide-react';
-import type { TaskWithAttemptStatus } from 'shared/types';
+import type { TaskWithAttemptStatus, BaseCodingAgent } from 'shared/types';
 import { ActionsDropdown } from '@/components/ui/actions-dropdown';
+import { AgentIcon } from '@/components/agents/AgentIcon';
 import { Button } from '@/components/ui/button';
 import { useNavigateWithSearch } from '@/hooks';
 import { paths } from '@/lib/paths';
@@ -90,6 +91,12 @@ export function TaskCard({
           title={task.title}
           right={
             <>
+              {task.executor && (
+                <AgentIcon
+                  agent={task.executor as BaseCodingAgent}
+                  className="h-4 w-4"
+                />
+              )}
               {task.has_in_progress_attempt && (
                 <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
               )}
