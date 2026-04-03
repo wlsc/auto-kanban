@@ -9,15 +9,6 @@
 </p>
 
 <p align="center">Get 10X more out of Claude Code, Gemini CLI, Codex, Amp and other coding agents...</p>
-<p align="center">
-  <a href="https://www.npmjs.com/package/auto-kanban"><img alt="npm" src="https://img.shields.io/npm/v/auto-kanban?style=flat-square" /></a>
-  <a href="https://github.com/wlscdev/auto-kanban/blob/main/.github/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/wlscdev/auto-kanban/.github%2Fworkflows%2Fpublish.yml" /></a>
-  <a href="https://deepwiki.com/wlscdev/auto-kanban"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-</p>
-
-<h1 align="center">
-  <a href="https://jobs.polymer.co/auto-kanban?source=github"><strong>We're hiring!</strong></a>
-</h1>
 
 ![](frontend/public/auto-kanban-screenshot-overview.png)
 
