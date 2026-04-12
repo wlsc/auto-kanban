@@ -412,5 +412,10 @@
     "streamsAffected_other": "{{count}} 個資料流受影響",
     "status": "(狀態 {{status}})",
     "refreshPage": "重新整理頁面"
+  },
+  "serverConnection": {
+    "connecting": "正在連線至伺服器",
+    "connected": "已連線",
+    "description": "伺服器正在啟動中，此頁面將自動載入。"
   }
 }

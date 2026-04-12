@@ -1462,6 +1462,16 @@ export const comparisonsApi = {
   },
 };
 
+// Health API
+export const healthApi = {
+  check: async (): Promise<boolean> => {
+    const response = await makeRequest('/api/health', {
+      signal: AbortSignal.timeout(3000),
+    });
+    return response.ok;
+  },
+};
+
 // Search API (multi-repo file search)
 export const searchApi = {
   searchFiles: async (

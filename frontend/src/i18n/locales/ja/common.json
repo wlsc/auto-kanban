@@ -412,5 +412,10 @@
     "streamsAffected_other": "{{count}}件のストリームが影響を受けています",
     "status": "(ステータス {{status}})",
     "refreshPage": "ページを更新"
+  },
+  "serverConnection": {
+    "connecting": "サーバーに接続中",
+    "connected": "接続完了",
+    "description": "サーバーを起動しています。このページは自動的に読み込まれます。"
   }
 }

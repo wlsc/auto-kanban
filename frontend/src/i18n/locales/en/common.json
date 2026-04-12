@@ -412,5 +412,10 @@
     "streamsAffected_other": "{{count}} streams affected",
     "status": "(status {{status}})",
     "refreshPage": "Refresh Page"
+  },
+  "serverConnection": {
+    "connecting": "Connecting to server",
+    "connected": "Connected",
+    "description": "The server is starting up. This page will load automatically."
   }
 }

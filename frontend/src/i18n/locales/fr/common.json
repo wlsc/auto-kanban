@@ -412,5 +412,10 @@
     "streamsAffected_other": "{{count}} flux affectés",
     "status": "(statut {{status}})",
     "refreshPage": "Actualiser la page"
+  },
+  "serverConnection": {
+    "connecting": "Connexion au serveur",
+    "connected": "Connecté",
+    "description": "Le serveur est en cours de démarrage. Cette page se chargera automatiquement."
   }
 }

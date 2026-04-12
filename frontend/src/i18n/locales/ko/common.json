@@ -412,5 +412,10 @@
     "streamsAffected_other": "{{count}}개 스트림이 영향을 받음",
     "status": "(상태 {{status}})",
     "refreshPage": "페이지 새로고침"
+  },
+  "serverConnection": {
+    "connecting": "서버에 연결 중",
+    "connected": "연결됨",
+    "description": "서버가 시작되고 있습니다. 이 페이지는 자동으로 로드됩니다."
   }
 }

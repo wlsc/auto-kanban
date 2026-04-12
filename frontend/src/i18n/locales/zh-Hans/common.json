@@ -412,5 +412,10 @@
     "streamsAffected_other": "{{count}} 个数据流受影响",
     "status": "(状态 {{status}})",
     "refreshPage": "刷新页面"
+  },
+  "serverConnection": {
+    "connecting": "正在连接服务器",
+    "connected": "已连接",
+    "description": "服务器正在启动中，此页面将自动加载。"
   }
 }
