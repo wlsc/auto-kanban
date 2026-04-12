@@ -105,6 +105,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       shared: path.resolve(__dirname, '../shared'),
     },
+    dedupe: ['@codemirror/state', '@codemirror/view', '@codemirror/language', '@codemirror/lint'],
   },
   server: {
     port: parseInt(process.env.FRONTEND_PORT || '3000'),
