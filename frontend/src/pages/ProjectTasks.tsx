@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -7,15 +7,16 @@ import {
   AlertTriangle,
   Cloud,
   ExternalLink,
+  GitCompareArrows,
   Plus,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { Loader } from '@/components/ui/loader';
-import { tasksApi } from '@/lib/api';
+import { tasksApi, attemptsApi } from '@/lib/api';
 import type { RepoBranchStatus, Workspace } from 'shared/types';
 import { openTaskForm } from '@/lib/openTaskForm';
-import { FeatureShowcaseDialog } from '@/components/dialogs/global/FeatureShowcaseDialog';
-import { showcases } from '@/config/showcases';
+import { StartComparisonDialog } from '@/components/dialogs/tasks/StartComparisonDialog';
 import { useUserSystem } from '@/components/ConfigProvider';
 import { useSearch } from '@/contexts/SearchContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -166,12 +167,75 @@ export function ProjectTasks() {
   }, [projectId]);
   const { query: searchQuery, focusInput } = useSearch();
 
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [isComparing, setIsComparing] = useState(false);
+
+  const handleToggleSelectTask = useCallback((taskId: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedTaskIds(new Set());
+  }, []);
+
   const {
     tasks,
     tasksById,
     isLoading,
     error: streamError,
   } = useProjectTasks(projectId || '');
+
+  const handleStartComparison = useCallback(async () => {
+    if (!projectId || selectedTaskIds.size < 2) return;
+    setIsComparing(true);
+
+    try {
+      const workspaces = await Promise.all(
+        [...selectedTaskIds].map(async (tId) => {
+          const task = tasksById[tId];
+          const attempts = await attemptsApi.getAll(tId);
+          const sorted = [...attempts].sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+          );
+          return {
+            workspaceId: sorted[0]?.id,
+            taskTitle: task?.title ?? 'Task',
+          };
+        })
+      );
+
+      const valid = workspaces.filter((ws) => ws.workspaceId);
+      if (valid.length < 2) {
+        console.error('Not enough tasks with workspaces to compare');
+        return;
+      }
+
+      StartComparisonDialog.show({
+        projectId,
+        workspaceIds: valid.map((ws) => ws.workspaceId),
+        taskTitles: valid.map((ws) => ws.taskTitle),
+        onSuccess: () => {
+          setSelectedTaskIds(new Set());
+        },
+      });
+    } catch (err) {
+      console.error('Failed to resolve workspaces for comparison:', err);
+    } finally {
+      setIsComparing(false);
+    }
+  }, [projectId, selectedTaskIds, tasksById]);
 
   const selectedTask = useMemo(
     () => (taskId ? (tasksById[taskId] ?? null) : null),
@@ -180,34 +244,9 @@ export function ProjectTasks() {
 
   const isPanelOpen = Boolean(taskId && selectedTask);
 
-  const { config, updateAndSaveConfig, loading } = useUserSystem();
+  const { config, loading } = useUserSystem();
 
   const isLoaded = !loading;
-  const showcaseId = showcases.taskPanel.id;
-  const seenFeatures = useMemo(
-    () => config?.showcases?.seen_features ?? [],
-    [config?.showcases?.seen_features]
-  );
-  const seen = isLoaded && seenFeatures.includes(showcaseId);
-
-  useEffect(() => {
-    if (!isLoaded || !isPanelOpen || seen) return;
-
-    FeatureShowcaseDialog.show({ config: showcases.taskPanel }).finally(() => {
-      FeatureShowcaseDialog.hide();
-      if (seenFeatures.includes(showcaseId)) return;
-      void updateAndSaveConfig({
-        showcases: { seen_features: [...seenFeatures, showcaseId] },
-      });
-    });
-  }, [
-    isLoaded,
-    isPanelOpen,
-    seen,
-    showcaseId,
-    updateAndSaveConfig,
-    seenFeatures,
-  ]);
 
   // Redirect beta users from old attempt URLs to the new workspaces UI
   useEffect(() => {
@@ -714,6 +753,8 @@ export function ProjectTasks() {
           selectedTaskId={selectedTask?.id}
           onCreateTask={handleCreateNewTask}
           projectId={projectId!}
+          selectedTaskIds={selectedTaskIds}
+          onToggleSelectTask={handleToggleSelectTask}
         />
       </div>
     );
@@ -858,6 +899,31 @@ export function ProjectTasks() {
           </AlertTitle>
           <AlertDescription>{streamError}</AlertDescription>
         </Alert>
+      )}
+
+      {selectedTaskIds.size >= 2 && (
+        <div className="sticky top-0 z-40 flex justify-center py-2">
+          <div className="flex items-center gap-2 rounded-lg border bg-background px-4 py-2 shadow-lg">
+            <span className="text-sm font-medium">
+              {selectedTaskIds.size} tasks selected
+            </span>
+            <Button
+              size="sm"
+              onClick={handleStartComparison}
+              disabled={isComparing}
+            >
+              <GitCompareArrows className="h-4 w-4 mr-1.5" />
+              {isComparing ? 'Loading...' : 'Compare Selected'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleClearSelection}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
 
       {config?.beta_workspaces && (

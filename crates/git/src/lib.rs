@@ -1098,6 +1098,18 @@ impl GitService {
         Ok(git.merge_base(worktree_path, target_branch, task_branch)?)
     }
 
+    /// Get the raw diff patch text between a base commit and HEAD.
+    pub fn get_diff_text(
+        &self,
+        worktree_path: &Path,
+        base_commit: &str,
+    ) -> Result<String, GitServiceError> {
+        let git = GitCli::new();
+        let diff_ref = format!("{base_commit}..HEAD");
+        git.git(worktree_path, ["diff", &diff_ref])
+            .map_err(|e| GitServiceError::InvalidRepository(format!("git diff failed: {e}")))
+    }
+
     /// Get the subject/summary line for a given commit OID
     pub fn get_commit_subject(
         &self,

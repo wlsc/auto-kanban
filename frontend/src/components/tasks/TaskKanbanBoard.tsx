@@ -19,6 +19,8 @@ interface TaskKanbanBoardProps {
   selectedTaskId?: string;
   onCreateTask?: () => void;
   projectId: string;
+  selectedTaskIds?: Set<string>;
+  onToggleSelectTask?: (taskId: string) => void;
 }
 
 function TaskKanbanBoard({
@@ -28,6 +30,8 @@ function TaskKanbanBoard({
   selectedTaskId,
   onCreateTask,
   projectId,
+  selectedTaskIds,
+  onToggleSelectTask,
 }: TaskKanbanBoardProps) {
   return (
     <KanbanProvider onDragEnd={onDragEnd}>
@@ -50,6 +54,8 @@ function TaskKanbanBoard({
                   onViewDetails={onViewTaskDetails}
                   isOpen={selectedTaskId === task.id}
                   projectId={projectId}
+                  isSelected={selectedTaskIds?.has(task.id)}
+                  onToggleSelect={onToggleSelectTask}
                 />
               ))}
             </KanbanCards>

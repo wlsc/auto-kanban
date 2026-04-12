@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT cat.summary as \"summary!\"\n               FROM coding_agent_turns cat\n               JOIN execution_processes ep ON cat.execution_process_id = ep.id\n               JOIN sessions s ON ep.session_id = s.id\n               WHERE s.workspace_id = $1\n                 AND cat.summary IS NOT NULL\n                 AND cat.summary != ''\n                 AND ep.run_reason = 'codingagent'\n                 AND ep.dropped = FALSE\n               ORDER BY ep.created_at ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "summary!",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "e669fbd516b8c2e3ee6e70378d6ec0242ae3ddb836e9feebaf4ce065eb1aa322"
+}

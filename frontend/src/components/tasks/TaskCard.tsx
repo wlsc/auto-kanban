@@ -5,6 +5,7 @@ import type { TaskWithAttemptStatus, BaseCodingAgent } from 'shared/types';
 import { ActionsDropdown } from '@/components/ui/actions-dropdown';
 import { AgentIcon } from '@/components/agents/AgentIcon';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigateWithSearch } from '@/hooks';
 import { paths } from '@/lib/paths';
 import { attemptsApi } from '@/lib/api';
@@ -20,6 +21,8 @@ interface TaskCardProps {
   onViewDetails: (task: Task) => void;
   isOpen?: boolean;
   projectId: string;
+  isSelected?: boolean;
+  onToggleSelect?: (taskId: string) => void;
 }
 
 export function TaskCard({
@@ -29,6 +32,8 @@ export function TaskCard({
   onViewDetails,
   isOpen,
   projectId,
+  isSelected,
+  onToggleSelect,
 }: TaskCardProps) {
   const { t } = useTranslation('tasks');
   const navigate = useNavigateWithSearch();
@@ -87,38 +92,55 @@ export function TaskCard({
       forwardedRef={localRef}
     >
       <div className="flex flex-col gap-2">
-        <TaskCardHeader
-          title={task.title}
-          right={
-            <>
-              {task.executor && (
-                <AgentIcon
-                  agent={task.executor as BaseCodingAgent}
-                  className="h-4 w-4"
-                />
-              )}
-              {task.has_in_progress_attempt && (
-                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-              )}
-              {task.last_attempt_failed && (
-                <XCircle className="h-4 w-4 text-destructive" />
-              )}
-              {task.parent_workspace_id && (
-                <Button
-                  variant="icon"
-                  onClick={handleParentClick}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  disabled={isNavigatingToParent}
-                  title={t('navigateToParent')}
-                >
-                  <Link className="h-4 w-4" />
-                </Button>
-              )}
-              <ActionsDropdown task={task} />
-            </>
-          }
-        />
+        <div className="flex items-start gap-2">
+          {onToggleSelect && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="mt-0.5 shrink-0"
+            >
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => onToggleSelect(task.id)}
+              />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <TaskCardHeader
+              title={task.title}
+              right={
+                <>
+                  {task.executor && (
+                    <AgentIcon
+                      agent={task.executor as BaseCodingAgent}
+                      className="h-4 w-4"
+                    />
+                  )}
+                  {task.has_in_progress_attempt && (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                  )}
+                  {task.last_attempt_failed && (
+                    <XCircle className="h-4 w-4 text-destructive" />
+                  )}
+                  {task.parent_workspace_id && (
+                    <Button
+                      variant="icon"
+                      onClick={handleParentClick}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      disabled={isNavigatingToParent}
+                      title={t('navigateToParent')}
+                    >
+                      <Link className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <ActionsDropdown task={task} />
+                </>
+              }
+            />
+          </div>
+        </div>
         {task.description && (
           <p className="text-sm text-secondary-foreground break-words">
             {task.description.length > 130

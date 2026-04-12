@@ -8,7 +8,8 @@ use ts_rs::TS;
 use crate::{
     actions::{
         coding_agent_follow_up::CodingAgentFollowUpRequest,
-        coding_agent_initial::CodingAgentInitialRequest, review::ReviewRequest,
+        coding_agent_initial::CodingAgentInitialRequest,
+        review::ReviewRequest,
         script::ScriptRequest,
     },
     approvals::ExecutorApprovalService,

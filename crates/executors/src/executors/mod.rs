@@ -374,6 +374,82 @@ pub fn build_review_prompt(
     prompt
 }
 
+pub struct SolutionContext {
+    pub label: String,
+    pub executor_used: Option<String>,
+    pub container_ref: String,
+    pub repo_paths: Vec<(String, String)>,
+    pub agent_summaries: Vec<String>,
+}
+
+pub fn build_comparison_task_description(
+    task_description: Option<&str>,
+    solutions: &[SolutionContext],
+    additional_prompt: Option<&str>,
+) -> String {
+    let n = solutions.len();
+    let mut desc = format!(
+        "You are comparing {n} solutions to the same task. Each solution exists as a \
+         worktree on the local filesystem. Navigate to each solution's path, read the \
+         code, and evaluate which one best achieves the goal.\n\n"
+    );
+
+    if let Some(td) = task_description {
+        desc.push_str("## Task Goal\n\n");
+        desc.push_str(td);
+        desc.push_str("\n\n");
+    }
+
+    for (i, sol) in solutions.iter().enumerate() {
+        let letter = (b'A' + i as u8) as char;
+        let executor_label = sol.executor_used.as_deref().unwrap_or("Unknown");
+        desc.push_str(&format!(
+            "---\n## Solution {letter} — {label} ({executor_label})\n\n",
+            label = sol.label
+        ));
+        desc.push_str(&format!(
+            "**Worktree path:** `{}`\n",
+            sol.container_ref
+        ));
+        desc.push_str("**Repos:**\n");
+        for (repo_name, target_branch) in &sol.repo_paths {
+            desc.push_str(&format!(
+                "- `{}/{}` (target branch: {})\n",
+                sol.container_ref, repo_name, target_branch
+            ));
+        }
+        desc.push('\n');
+
+        if !sol.agent_summaries.is_empty() {
+            desc.push_str("### Agent Reasoning\n\n");
+            for summary in &sol.agent_summaries {
+                desc.push_str(summary);
+                desc.push_str("\n\n");
+            }
+        }
+    }
+
+    desc.push_str("---\n## Instructions\n\n");
+    desc.push_str(
+        "For each solution, navigate to its worktree path and examine the code changes. \
+         Compare against the target branch to understand what was changed. Analyze:\n\
+         1. **Correctness** — Does it correctly solve the task goal?\n\
+         2. **Completeness** — Are all requirements addressed?\n\
+         3. **Code Quality** — Is the code clean, maintainable, and well-structured?\n\
+         4. **Approach / Design** — Is the overall approach sound?\n\n\
+         Compare the solutions head-to-head and recommend the BEST one with clear \
+         justification.\n\n",
+    );
+
+    if let Some(additional) = additional_prompt {
+        desc.push_str("## Additional Instructions\n\n");
+        desc.push_str(additional);
+        desc.push('\n');
+    }
+
+    desc
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

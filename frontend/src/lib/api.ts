@@ -95,6 +95,7 @@ import {
   CreateFromPrError,
   MigrationRequest,
   MigrationResponse,
+  CreateComparisonTaskRequest,
 } from 'shared/types';
 import type { WorkspaceWithSession } from '@/types/attempt';
 import { createWorkspaceWithSession } from '@/types/attempt';
@@ -1448,6 +1449,16 @@ export const migrationApi = {
       body: JSON.stringify(data),
     });
     return handleApiResponse<MigrationResponse>(response);
+  },
+};
+
+export const comparisonsApi = {
+  createTask: async (data: CreateComparisonTaskRequest): Promise<Task> => {
+    const response = await makeRequest('/api/comparisons/create-task', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return handleApiResponse<Task>(response);
   },
 };
 

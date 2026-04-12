@@ -623,6 +623,29 @@ impl Workspace {
         Ok(workspaces)
     }
 
+    /// Fetch all CodingAgentTurn summaries for a workspace (across all sessions)
+    pub async fn fetch_agent_summaries(
+        pool: &SqlitePool,
+        workspace_id: Uuid,
+    ) -> Result<Vec<String>, sqlx::Error> {
+        let summaries: Vec<String> = sqlx::query_scalar!(
+            r#"SELECT cat.summary as "summary!"
+               FROM coding_agent_turns cat
+               JOIN execution_processes ep ON cat.execution_process_id = ep.id
+               JOIN sessions s ON ep.session_id = s.id
+               WHERE s.workspace_id = $1
+                 AND cat.summary IS NOT NULL
+                 AND cat.summary != ''
+                 AND ep.run_reason = 'codingagent'
+                 AND ep.dropped = FALSE
+               ORDER BY ep.created_at ASC"#,
+            workspace_id
+        )
+        .fetch_all(pool)
+        .await?;
+        Ok(summaries)
+    }
+
     /// Delete a workspace by ID
     pub async fn delete(pool: &SqlitePool, id: Uuid) -> Result<u64, sqlx::Error> {
         let result = sqlx::query!("DELETE FROM workspaces WHERE id = $1", id)

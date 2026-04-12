@@ -607,6 +607,8 @@ working_dir: string | null, };
 
 export type RepoReviewContext = { repo_id: string, repo_name: string, base_commit: string, };
 
+export type CreateComparisonTaskRequest = { project_id: string, workspace_ids: Array<string>, title: string | null, additional_prompt: string | null, };
+
 export type CommandExitStatus = { "type": "exit_code", code: number, } | { "type": "success", success: boolean, };
 
 export type CommandRunResult = { exit_status: CommandExitStatus | null, output: string | null, };
