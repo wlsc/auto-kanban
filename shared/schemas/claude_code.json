@@ -47,6 +47,14 @@
         "null"
       ]
     },
+    "print_mode": {
+      "description": "Pass the -p flag to Claude Code (defaults to true)",
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": true
+    },
     "base_command_override": {
       "title": "Base Command Override",
       "description": "Override the base command with a custom command",

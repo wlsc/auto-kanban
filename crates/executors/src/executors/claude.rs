@@ -59,6 +59,10 @@ fn base_command(claude_code_router: bool) -> &'static str {
 
 use derivative::Derivative;
 
+fn default_print_mode() -> Option<bool> {
+    Some(true)
+}
+
 #[derive(Derivative, Clone, Serialize, Deserialize, TS, JsonSchema)]
 #[derivative(Debug, PartialEq)]
 pub struct ClaudeCode {
@@ -76,6 +80,9 @@ pub struct ClaudeCode {
     pub dangerously_skip_permissions: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub disable_api_key: Option<bool>,
+    #[serde(default = "default_print_mode", skip_serializing_if = "Option::is_none")]
+    #[schemars(description = "Pass the -p flag to Claude Code (defaults to true)")]
+    pub print_mode: Option<bool>,
     #[serde(flatten)]
     pub cmd: CmdOverrides,
 
@@ -95,8 +102,11 @@ impl ClaudeCode {
         }
 
         let mut builder =
-            CommandBuilder::new(base_command(self.claude_code_router.unwrap_or(false)))
-                .params(["-p"]);
+            CommandBuilder::new(base_command(self.claude_code_router.unwrap_or(false)));
+
+        if self.print_mode.unwrap_or(true) {
+            builder = builder.params(["-p"]);
+        }
 
         let plan = self.plan.unwrap_or(false);
         let approvals = self.approvals.unwrap_or(false);

@@ -180,8 +180,11 @@ impl ClaudeCode {
         &self,
     ) -> Result<CommandBuilder, CommandBuildError> {
         let mut builder =
-            CommandBuilder::new(base_command(self.claude_code_router.unwrap_or(false)))
-                .params(["-p"]);
+            CommandBuilder::new(base_command(self.claude_code_router.unwrap_or(false)));
+
+        if self.print_mode.unwrap_or(true) {
+            builder = builder.params(["-p"]);
+        }
 
         builder = builder.extend_params([
             "--verbose",
