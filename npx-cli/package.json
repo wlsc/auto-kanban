@@ -7,7 +7,7 @@
     "auto-kanban": "bin/cli.js"
   },
   "keywords": [],
-  "author": "bloop",
+  "author": "wlsc",
   "repository": {
     "type": "git",
     "url": "https://github.com/wlscdev/auto-kanban"

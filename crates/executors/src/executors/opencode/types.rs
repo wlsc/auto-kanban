@@ -57,6 +57,8 @@ pub(super) enum SdkEvent {
     SessionCompacted,
     SessionError(SessionErrorEvent),
     TodoUpdated(TodoUpdatedEvent),
+    MessagePartDelta,
+    SessionUpdated,
     CommandExecuted,
     TuiSessionSelect,
     Unknown { type_: String, properties: Value },
@@ -91,6 +93,8 @@ impl SdkEvent {
             "todo.updated" => {
                 SdkEvent::TodoUpdated(serde_json::from_value(envelope.properties).ok()?)
             }
+            "message.part.delta" => SdkEvent::MessagePartDelta,
+            "session.updated" => SdkEvent::SessionUpdated,
             "command.executed" => SdkEvent::CommandExecuted,
             "tui.session.select" => SdkEvent::TuiSessionSelect,
             _ => SdkEvent::Unknown {

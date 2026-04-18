@@ -13,7 +13,7 @@ use db::{
 use sqlx::error::Error as SqlxError;
 use thiserror::Error;
 use tokio::time::interval;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 use crate::services::{
     container::ContainerService,
@@ -78,7 +78,7 @@ impl<C: ContainerService + Send + Sync + 'static> PrMonitorService<C> {
         let open_prs = Merge::get_open_prs(&self.db.pool).await?;
 
         if open_prs.is_empty() {
-            debug!("No open PRs to check");
+            trace!("No open PRs to check");
             return Ok(());
         }
 

@@ -689,7 +689,7 @@ export function ProjectTasks() {
 
   const isInitialTasksLoad = isLoading && tasks.length === 0;
 
-  if (projectError) {
+  if (projectError && project) {
     return (
       <div className="p-4">
         <Alert>
@@ -705,7 +705,7 @@ export function ProjectTasks() {
     );
   }
 
-  if (projectLoading && isInitialTasksLoad) {
+  if ((projectLoading && isInitialTasksLoad) || (projectError && !project)) {
     return <Loader message={t('loading')} size={32} className="py-8" />;
   }
 

@@ -47,16 +47,16 @@ pub fn is_wsl2() -> bool {
 
 pub fn cache_dir() -> std::path::PathBuf {
     let proj = if cfg!(debug_assertions) {
-        ProjectDirs::from("ai", "bloop-dev", env!("CARGO_PKG_NAME"))
+        ProjectDirs::from("", "", &format!("{}-dev", env!("CARGO_PKG_NAME")))
             .expect("OS didn't give us a home directory")
     } else {
-        ProjectDirs::from("ai", "bloop", env!("CARGO_PKG_NAME"))
+        ProjectDirs::from("", "", env!("CARGO_PKG_NAME"))
             .expect("OS didn't give us a home directory")
     };
 
-    // ✔ macOS → ~/Library/Caches/MyApp
-    // ✔ Linux → ~/.cache/myapp (respects XDG_CACHE_HOME)
-    // ✔ Windows → %LOCALAPPDATA%\Example\MyApp
+    // ✔ macOS → ~/Library/Caches/auto-kanban
+    // ✔ Linux → ~/.cache/auto-kanban (respects XDG_CACHE_HOME)
+    // ✔ Windows → %LOCALAPPDATA%\auto-kanban
     proj.cache_dir().to_path_buf()
 }
 

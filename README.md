@@ -78,7 +78,7 @@ To run with a **release build** (uses your production database and optimized com
 pnpm run dev:release
 ```
 
-> **Note:** `dev:release` connects to the same database as `npx auto-kanban` (`~/Library/Application Support/ai.bloop.auto-kanban/` on macOS). Any changes made will affect your real data.
+> **Note:** `dev:release` connects to the same database as `npx auto-kanban` (`~/Library/Application Support/auto-kanban/` on macOS). Any changes made will affect your real data.
 
 ### Building the frontend
 
