@@ -291,6 +291,7 @@ const WYSIWYGEditor = forwardRef<WYSIWYGEditorRef, WysiwygProps>(
             <LocalImagesContext.Provider value={localImages ?? []}>
               <LexicalComposer initialConfig={initialConfig}>
                 <EditorRefPlugin editorRef={editorInstanceRef} />
+                <CodeHighlightPlugin />
                 <MarkdownSyncPlugin
                   value={value}
                   onChange={onChange}
@@ -321,7 +322,6 @@ const WYSIWYGEditor = forwardRef<WYSIWYGEditorRef, WysiwygProps>(
 
                 <ListPlugin />
                 <TablePlugin />
-                <CodeHighlightPlugin />
                 {/* Only include editing plugins when not in read-only mode */}
                 {!disabled && (
                   <>
