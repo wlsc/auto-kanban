@@ -6,7 +6,7 @@ use axum::{
 };
 use db::models::{
     session::Session,
-    task::{CreateTask, Task},
+    task::{CreateTask, Task, TaskType},
     workspace::Workspace,
     workspace_repo::WorkspaceRepo,
 };
@@ -137,6 +137,7 @@ pub async fn create_comparison_task(
             title,
             description: Some(description),
             status: None,
+            task_type: Some(TaskType::Comparison),
             parent_workspace_id: None,
             image_ids: None,
         },

@@ -1,10 +1,12 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::{Arc, LazyLock},
 };
 
 use codex_app_server_protocol::{
+    CollabAgentStatus as V2CollabAgentStatus,
+    CollabAgentToolCallStatus as V2CollabAgentToolCallStatus,
     CommandExecutionStatus as V2CommandExecutionStatus, JSONRPCNotification, JSONRPCResponse,
     ServerNotification, ThreadItem as V2ThreadItem,
 };
@@ -13,12 +15,13 @@ use codex_protocol::{
     plan_tool::{StepStatus, UpdatePlanArgs},
     protocol::{
         AgentMessageDeltaEvent, AgentMessageEvent, AgentReasoningDeltaEvent, AgentReasoningEvent,
-        AgentReasoningSectionBreakEvent, ApplyPatchApprovalRequestEvent, BackgroundEventEvent,
-        ErrorEvent, EventMsg, ExecApprovalRequestEvent, ExecCommandBeginEvent, ExecCommandEndEvent,
-        ExecCommandOutputDeltaEvent, ExecOutputStream, FileChange as CodexProtoFileChange,
-        McpInvocation, McpToolCallBeginEvent, McpToolCallEndEvent, PatchApplyBeginEvent,
-        PatchApplyEndEvent, StreamErrorEvent, ViewImageToolCallEvent, WarningEvent,
-        WebSearchBeginEvent, WebSearchEndEvent,
+        AgentReasoningSectionBreakEvent, AgentStatus, ApplyPatchApprovalRequestEvent,
+        BackgroundEventEvent, CollabAgentInteractionEndEvent, CollabAgentStatusEntry,
+        CollabWaitingEndEvent, ErrorEvent, EventMsg, ExecApprovalRequestEvent,
+        ExecCommandBeginEvent, ExecCommandEndEvent, ExecCommandOutputDeltaEvent, ExecOutputStream,
+        FileChange as CodexProtoFileChange, McpInvocation, McpToolCallBeginEvent,
+        McpToolCallEndEvent, PatchApplyBeginEvent, PatchApplyEndEvent, StreamErrorEvent,
+        ViewImageToolCallEvent, WarningEvent, WebSearchBeginEvent, WebSearchEndEvent,
     },
 };
 use futures::StreamExt;
@@ -214,6 +217,7 @@ struct LogState {
     mcp_tools: HashMap<String, McpToolState>,
     patches: HashMap<String, PatchState>,
     web_searches: HashMap<String, WebSearchState>,
+    processed_collab_calls: HashSet<String>,
 }
 
 enum StreamingTextKind {
@@ -231,6 +235,7 @@ impl LogState {
             mcp_tools: HashMap::new(),
             patches: HashMap::new(),
             web_searches: HashMap::new(),
+            processed_collab_calls: HashSet::new(),
         }
     }
 
@@ -488,6 +493,53 @@ pub fn normalize_logs(msg_store: Arc<MsgStore>, worktree_path: &Path) {
                                         command_state.to_normalized_entry(),
                                     );
                                 }
+                            }
+                        }
+                        V2ThreadItem::CollabAgentToolCall {
+                            id,
+                            status,
+                            prompt,
+                            receiver_thread_ids,
+                            agents_states,
+                            ..
+                        } => {
+                            if !state.processed_collab_calls.insert(id) {
+                                continue;
+                            }
+
+                            let mut emitted = false;
+                            for (thread_id, agent_state) in agents_states {
+                                emitted = true;
+                                let status = collab_v2_agent_state_to_agent_status(agent_state);
+                                add_collab_task_entry(
+                                    &msg_store,
+                                    &entry_index,
+                                    collab_description_from_prompt_and_identity(
+                                        prompt.as_deref().unwrap_or_default(),
+                                        None,
+                                        None,
+                                    ),
+                                    Some(thread_id.to_string()),
+                                    status,
+                                );
+                            }
+
+                            if !emitted {
+                                let fallback_status = collab_v2_tool_call_status_to_agent_status(
+                                    status,
+                                    receiver_thread_ids.len(),
+                                );
+                                add_collab_task_entry(
+                                    &msg_store,
+                                    &entry_index,
+                                    collab_description_from_prompt_and_identity(
+                                        prompt.as_deref().unwrap_or_default(),
+                                        None,
+                                        None,
+                                    ),
+                                    receiver_thread_ids.first().map(ToString::to_string),
+                                    fallback_status,
+                                );
                             }
                         }
                         _ => {}
@@ -1134,6 +1186,74 @@ pub fn normalize_logs(msg_store: Arc<MsgStore>, worktree_path: &Path) {
                         },
                     );
                 }
+                EventMsg::CollabAgentInteractionEnd(CollabAgentInteractionEndEvent {
+                    call_id,
+                    receiver_agent_nickname,
+                    receiver_agent_role,
+                    prompt,
+                    status,
+                    ..
+                }) => {
+                    if !state.processed_collab_calls.insert(call_id) {
+                        continue;
+                    }
+                    add_collab_task_entry(
+                        &msg_store,
+                        &entry_index,
+                        collab_description_from_prompt_and_identity(
+                            &prompt,
+                            receiver_agent_nickname.as_deref(),
+                            receiver_agent_role.as_deref(),
+                        ),
+                        receiver_agent_role.or(receiver_agent_nickname),
+                        status,
+                    );
+                }
+                EventMsg::CollabWaitingEnd(CollabWaitingEndEvent {
+                    call_id,
+                    agent_statuses,
+                    statuses,
+                    ..
+                }) => {
+                    if !state.processed_collab_calls.insert(call_id) {
+                        continue;
+                    }
+                    if !agent_statuses.is_empty() {
+                        for CollabAgentStatusEntry {
+                            thread_id,
+                            agent_nickname,
+                            agent_role,
+                            status,
+                        } in agent_statuses
+                        {
+                            add_collab_task_entry(
+                                &msg_store,
+                                &entry_index,
+                                collab_description_from_identity(
+                                    &thread_id.to_string(),
+                                    agent_nickname.as_deref(),
+                                    agent_role.as_deref(),
+                                ),
+                                agent_role.or(agent_nickname),
+                                status,
+                            );
+                        }
+                    } else {
+                        for (thread_id, status) in statuses {
+                            add_collab_task_entry(
+                                &msg_store,
+                                &entry_index,
+                                collab_description_from_identity(
+                                    &thread_id.to_string(),
+                                    None,
+                                    None,
+                                ),
+                                None,
+                                status,
+                            );
+                        }
+                    }
+                }
                 EventMsg::AgentReasoningRawContent(..)
                 | EventMsg::AgentReasoningRawContentDelta(..)
                 | EventMsg::ThreadRolledBack(..)
@@ -1165,9 +1285,7 @@ pub fn normalize_logs(msg_store: Arc<MsgStore>, worktree_path: &Path) {
                 | EventMsg::CollabAgentSpawnBegin(..)
                 | EventMsg::CollabAgentSpawnEnd(..)
                 | EventMsg::CollabAgentInteractionBegin(..)
-                | EventMsg::CollabAgentInteractionEnd(..)
                 | EventMsg::CollabWaitingBegin(..)
-                | EventMsg::CollabWaitingEnd(..)
                 | EventMsg::CollabCloseBegin(..)
                 | EventMsg::CollabCloseEnd(..)
                 | EventMsg::ThreadNameUpdated(..)
@@ -1272,6 +1390,109 @@ fn map_v2_command_status(status: V2CommandExecutionStatus, exit_code: Option<i32
             }
         }
     }
+}
+
+fn collab_description_from_prompt_and_identity(
+    prompt: &str,
+    nickname: Option<&str>,
+    role: Option<&str>,
+) -> String {
+    let prompt = prompt.trim();
+    if !prompt.is_empty() {
+        return prompt.to_string();
+    }
+    collab_description_from_identity("unknown", nickname, role)
+}
+
+fn collab_description_from_identity(thread_id: &str, nickname: Option<&str>, role: Option<&str>) -> String {
+    if let Some(name) = nickname.filter(|value| !value.trim().is_empty()) {
+        return format!("Subagent {name}");
+    }
+    if let Some(role) = role.filter(|value| !value.trim().is_empty()) {
+        return format!("Subagent {role}");
+    }
+    format!("Subagent {thread_id}")
+}
+
+fn collab_status_to_tool_status(status: &AgentStatus) -> ToolStatus {
+    match status {
+        AgentStatus::PendingInit | AgentStatus::Running | AgentStatus::Interrupted => {
+            ToolStatus::Created
+        }
+        AgentStatus::Completed(_) | AgentStatus::Shutdown => ToolStatus::Success,
+        AgentStatus::Errored(_) | AgentStatus::NotFound => ToolStatus::Failed,
+    }
+}
+
+fn collab_status_to_tool_result(status: &AgentStatus) -> Option<ToolResult> {
+    match status {
+        AgentStatus::Completed(Some(message)) if !message.trim().is_empty() => {
+            Some(ToolResult::markdown(message.clone()))
+        }
+        AgentStatus::Errored(message) if !message.trim().is_empty() => {
+            Some(ToolResult::markdown(message.clone()))
+        }
+        _ => None,
+    }
+}
+
+fn collab_v2_agent_state_to_agent_status(status: codex_app_server_protocol::CollabAgentState) -> AgentStatus {
+    match status.status {
+        V2CollabAgentStatus::PendingInit => AgentStatus::PendingInit,
+        V2CollabAgentStatus::Running => AgentStatus::Running,
+        V2CollabAgentStatus::Interrupted => AgentStatus::Interrupted,
+        V2CollabAgentStatus::Completed => AgentStatus::Completed(status.message),
+        V2CollabAgentStatus::Errored => {
+            AgentStatus::Errored(status.message.unwrap_or_else(|| "Subagent failed".to_string()))
+        }
+        V2CollabAgentStatus::Shutdown => AgentStatus::Shutdown,
+        V2CollabAgentStatus::NotFound => AgentStatus::NotFound,
+    }
+}
+
+fn collab_v2_tool_call_status_to_agent_status(
+    status: V2CollabAgentToolCallStatus,
+    receiver_count: usize,
+) -> AgentStatus {
+    match status {
+        V2CollabAgentToolCallStatus::Completed => AgentStatus::Completed(None),
+        V2CollabAgentToolCallStatus::Failed => AgentStatus::Errored(if receiver_count == 0 {
+            "Subagent call failed".to_string()
+        } else {
+            "Subagent failed".to_string()
+        }),
+        V2CollabAgentToolCallStatus::InProgress => AgentStatus::Running,
+    }
+}
+
+fn add_collab_task_entry(
+    msg_store: &Arc<MsgStore>,
+    entry_index: &EntryIndexProvider,
+    description: String,
+    subagent_type: Option<String>,
+    status: AgentStatus,
+) {
+    let tool_status = collab_status_to_tool_status(&status);
+    let result = collab_status_to_tool_result(&status);
+
+    add_normalized_entry(
+        msg_store,
+        entry_index,
+        NormalizedEntry {
+            timestamp: None,
+            entry_type: NormalizedEntryType::ToolUse {
+                tool_name: "task".to_string(),
+                action_type: ActionType::TaskCreate {
+                    description: description.clone(),
+                    subagent_type,
+                    result,
+                },
+                status: tool_status,
+            },
+            content: description,
+            metadata: None,
+        },
+    );
 }
 
 static SESSION_ID: LazyLock<Regex> = LazyLock::new(|| {

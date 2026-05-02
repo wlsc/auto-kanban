@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { KanbanCard } from '@/components/ui/shadcn-io/kanban';
-import { Link, Loader2, XCircle } from 'lucide-react';
+import { GitCompareArrows, Link, Loader2, XCircle } from 'lucide-react';
 import type { TaskWithAttemptStatus, BaseCodingAgent } from 'shared/types';
 import { ActionsDropdown } from '@/components/ui/actions-dropdown';
 import { AgentIcon } from '@/components/agents/AgentIcon';
@@ -111,6 +111,11 @@ export function TaskCard({
               title={task.title}
               right={
                 <>
+                  {task.task_type === 'comparison' && (
+                    <span title={t('comparisonTask')}>
+                      <GitCompareArrows className="h-4 w-4 text-violet-500" />
+                    </span>
+                  )}
                   {task.executor && (
                     <AgentIcon
                       agent={task.executor as BaseCodingAgent}

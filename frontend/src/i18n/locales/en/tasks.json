@@ -203,6 +203,7 @@
     "closePanel": "Close panel"
   },
   "navigateToParent": "Navigate to parent task attempt",
+  "comparisonTask": "Comparison task",
   "toolbar": {
     "actions": "Actions",
     "noAttempts": "No attempts yet",

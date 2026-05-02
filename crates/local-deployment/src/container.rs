@@ -79,6 +79,7 @@ pub struct LocalContainerService {
     queued_message_service: QueuedMessageService,
     notification_service: NotificationService,
     remote_client: Option<RemoteClient>,
+    caffeinate_process: Arc<RwLock<Option<tokio::process::Child>>>,
 }
 
 impl LocalContainerService {
@@ -98,6 +99,7 @@ impl LocalContainerService {
         let db_stream_handles = Arc::new(RwLock::new(HashMap::new()));
         let exit_monitor_handles = Arc::new(RwLock::new(HashMap::new()));
         let notification_service = NotificationService::new(config.clone());
+        let caffeinate_process = Arc::new(RwLock::new(None));
 
         let container = LocalContainerService {
             db,
@@ -113,6 +115,7 @@ impl LocalContainerService {
             queued_message_service,
             notification_service,
             remote_client,
+            caffeinate_process,
         };
 
         container.spawn_workspace_cleanup();
@@ -128,11 +131,54 @@ impl LocalContainerService {
     pub async fn add_child_to_store(&self, id: Uuid, exec: AsyncGroupChild) {
         let mut map = self.child_store.write().await;
         map.insert(id, Arc::new(RwLock::new(exec)));
+        drop(map);
+        self.sync_caffeinate_state().await;
     }
 
     pub async fn remove_child_from_store(&self, id: &Uuid) {
         let mut map = self.child_store.write().await;
         map.remove(id);
+        drop(map);
+        self.sync_caffeinate_state().await;
+    }
+
+    /// Start or stop `caffeinate` based on whether any child processes are running.
+    ///
+    /// On macOS, spawns `caffeinate -i -s` to prevent system and idle sleep while
+    /// executors are active. Kills the caffeinate process when the last executor exits.
+    /// On other platforms, this is a no-op.
+    async fn sync_caffeinate_state(&self) {
+        if !cfg!(target_os = "macos") {
+            return;
+        }
+
+        let child_count = self.child_store.read().await.len();
+        let mut guard = self.caffeinate_process.write().await;
+
+        if child_count > 0 && guard.is_none() {
+            match tokio::process::Command::new("caffeinate")
+                .args(["-i", "-s"])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+            {
+                Ok(child) => {
+                    tracing::info!("Started caffeinate to prevent system sleep");
+                    *guard = Some(child);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to start caffeinate: {}", e);
+                }
+            }
+        } else if child_count == 0
+            && let Some(mut child) = guard.take()
+        {
+            if let Err(e) = child.kill().await {
+                tracing::warn!("Failed to kill caffeinate: {}", e);
+            }
+            tracing::info!("Stopped caffeinate (no more running executors)");
+        }
     }
 
     async fn add_cancellation_token(&self, id: Uuid, token: CancellationToken) {
@@ -406,7 +452,6 @@ impl LocalContainerService {
         exit_signal: Option<ExecutorExitSignal>,
     ) -> JoinHandle<()> {
         let exec_id = *exec_id;
-        let child_store = self.child_store.clone();
         let msg_stores = self.msg_stores.clone();
         let db = self.db.clone();
         let container = self.clone();
@@ -427,7 +472,7 @@ impl LocalContainerService {
                 // signals when processing has finished to gracefully kill the process.
                 exit_result = &mut exit_signal_future => {
                     // Executor signaled completion: kill group and use the provided result
-                    if let Some(child_lock) = child_store.read().await.get(&exec_id).cloned() {
+                    if let Some(child_lock) = container.get_child_from_store(&exec_id).await {
                         let mut child = child_lock.write().await ;
                         if let Err(err) = command::kill_process_group(&mut child).await {
                             tracing::error!("Failed to kill process group after exit signal: {} {}", exec_id, err);
@@ -629,7 +674,7 @@ impl LocalContainerService {
             }
 
             // Cleanup child handle
-            child_store.write().await.remove(&exec_id);
+            container.remove_child_from_store(&exec_id).await;
         })
     }
 
