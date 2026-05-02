@@ -31,6 +31,8 @@
     "remote:generate-types:check": "cargo run --manifest-path crates/remote/Cargo.toml --bin remote-generate-types -- --check",
     "prepare-db": "node scripts/prepare-db.js",
     "prepare-db:check": "node scripts/prepare-db.js --check",
+    "check:codex-v2": "scripts/check-codex-v2-migration.sh",
+    "check:codex-v2:full": "scripts/check-codex-v2-migration.sh --full",
     "build:npx": "bash ./local-build.sh",
     "prepack": "pnpm run build:npx",
     "remote:dev": "cd crates/remote && docker compose --env-file .env.remote up --build ; docker compose down -v",

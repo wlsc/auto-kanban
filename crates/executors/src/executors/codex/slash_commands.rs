@@ -1,16 +1,20 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use codex_app_server_protocol::JSONRPCNotification;
 use codex_core::{
-    AuthManager, RolloutRecorder, ThreadManager,
+    RolloutRecorder, ThreadManager,
     config::{Config, ConfigOverrides},
+};
+use codex_exec_server::{EnvironmentManager, EnvironmentManagerArgs, ExecServerRuntimePaths};
+use codex_login::AuthManager;
+use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use codex_protocol::{
+    config_types::SandboxMode as CodexSandboxMode,
     protocol::{
         AgentMessageEvent, ErrorEvent, Event, EventMsg, Op as CoreOp, RolloutItem, SessionSource,
         TokenUsageInfo, TurnContextItem,
     },
-};
-use codex_protocol::{
-    config_types::SandboxMode as CodexSandboxMode, protocol::AskForApproval as CodexAskForApproval,
+    protocol::AskForApproval as CodexAskForApproval,
 };
 use serde_json::json;
 
@@ -188,18 +192,26 @@ impl Codex {
         let rollout_path = SessionHandler::find_rollout_file_path(session_id)
             .map_err(|err| ExecutorError::Io(std::io::Error::other(err.to_string())))?;
         let config = self.build_core_config(current_dir, instructions).await?;
-        let auth_manager = AuthManager::shared(
-            config.codex_home.clone(),
-            true,
-            config.cli_auth_credentials_store_mode,
-        );
+        let auth_manager = AuthManager::shared_from_config(&config, true);
+        let local_runtime_paths =
+            ExecServerRuntimePaths::from_optional_paths(
+                config.codex_self_exe.clone(),
+                config.codex_linux_sandbox_exe.clone(),
+            )
+            .map_err(|err| ExecutorError::Io(std::io::Error::other(err.to_string())))?;
+        let environment_manager = Arc::new(EnvironmentManager::new(
+            EnvironmentManagerArgs::from_env(local_runtime_paths),
+        ));
         let thread_manager = ThreadManager::new(
-            config.codex_home.clone(),
+            &config,
             auth_manager.clone(),
             SessionSource::Exec,
+            CollaborationModesConfig::default(),
+            environment_manager,
+            None,
         );
         let new_thread = thread_manager
-            .resume_thread_from_rollout(config, rollout_path, auth_manager)
+            .resume_thread_from_rollout(config, rollout_path, auth_manager, None)
             .await
             .map_err(|err| ExecutorError::Io(std::io::Error::other(err.to_string())))?;
         let thread = new_thread.thread;
@@ -274,7 +286,11 @@ impl Codex {
         self.spawn_static_reply_helper(
             current_dir,
             vec![match message {
-                Ok(message) => EventMsg::AgentMessage(AgentMessageEvent { message }),
+                Ok(message) => EventMsg::AgentMessage(AgentMessageEvent {
+                    message,
+                    phase: None,
+                    memory_citation: None,
+                }),
                 Err(message) => EventMsg::Error(ErrorEvent {
                     message,
                     codex_error_info: None,
@@ -506,7 +522,11 @@ pub async fn log_event_notification(
 pub async fn log_event_raw(log_writer: &LogWriter, message: String) -> Result<(), ExecutorError> {
     log_event_notification(
         log_writer,
-        EventMsg::AgentMessage(AgentMessageEvent { message }),
+        EventMsg::AgentMessage(AgentMessageEvent {
+            message,
+            phase: None,
+            memory_citation: None,
+        }),
     )
     .await
 }

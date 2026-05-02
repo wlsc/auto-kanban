@@ -25,9 +25,9 @@ pub fn codex_home() -> Option<PathBuf> {
 }
 
 use async_trait::async_trait;
-use codex_app_server_protocol::{NewConversationParams, ReviewTarget};
-use codex_protocol::{
-    config_types::SandboxMode as CodexSandboxMode, protocol::AskForApproval as CodexAskForApproval,
+use codex_app_server_protocol::{
+    AskForApproval as CodexAskForApproval, ReviewTarget,
+    SandboxMode as CodexSandboxMode, ThreadStartParams,
 };
 use command_group::AsyncCommandGroup;
 use derivative::Derivative;
@@ -292,7 +292,7 @@ impl Codex {
         apply_overrides(builder, &self.cmd)
     }
 
-    fn build_new_conversation_params(&self, cwd: &Path) -> NewConversationParams {
+    fn build_thread_start_params(&self, cwd: &Path) -> ThreadStartParams {
         let sandbox = match self.sandbox.as_ref() {
             None | Some(SandboxMode::Auto) => Some(CodexSandboxMode::WorkspaceWrite), // match the Auto preset in codex
             Some(SandboxMode::ReadOnly) => Some(CodexSandboxMode::ReadOnly),
@@ -312,18 +312,27 @@ impl Codex {
             Some(AskForApproval::Never) => Some(CodexAskForApproval::Never),
         };
 
-        NewConversationParams {
+        ThreadStartParams {
             model: self.model.clone(),
-            profile: self.profile.clone(),
+            model_provider: self.model_provider.clone(),
+            service_tier: None,
             cwd: Some(cwd.to_string_lossy().to_string()),
             approval_policy,
+            approvals_reviewer: None,
             sandbox,
+            permission_profile: None,
             config: self.build_config_overrides(),
+            service_name: None,
             base_instructions: self.base_instructions.clone(),
-            include_apply_patch_tool: self.include_apply_patch_tool,
-            model_provider: self.model_provider.clone(),
-            compact_prompt: self.compact_prompt.clone(),
             developer_instructions: self.developer_instructions.clone(),
+            personality: None,
+            ephemeral: None,
+            session_start_source: None,
+            environments: None,
+            dynamic_tools: None,
+            mock_experimental_field: None,
+            experimental_raw_events: false,
+            persist_extended_history: false,
         }
     }
 
@@ -368,7 +377,7 @@ impl Codex {
         resume_session: Option<&str>,
         env: &ExecutionEnv,
     ) -> Result<SpawnedChild, ExecutorError> {
-        let params = self.build_new_conversation_params(current_dir);
+        let params = self.build_thread_start_params(current_dir);
         let resume_session = resume_session.map(|s| s.to_string());
 
         self.spawn_app_server(
@@ -390,7 +399,7 @@ impl Codex {
     }
 
     async fn launch_codex_agent(
-        conversation_params: NewConversationParams,
+        thread_params: ThreadStartParams,
         resume_session: Option<String>,
         combined_prompt: String,
         client: Arc<AppServerClient>,
@@ -403,34 +412,26 @@ impl Codex {
         }
         match resume_session {
             None => {
-                let params = conversation_params;
-                let response = client.new_conversation(params).await?;
-                let conversation_id = response.conversation_id;
-                client.register_session(&conversation_id).await?;
-                client.add_conversation_listener(conversation_id).await?;
-                client
-                    .send_user_message(conversation_id, combined_prompt)
-                    .await?;
+                let response = client.start_thread(thread_params).await?;
+                let thread_id = response.thread.id;
+                client.register_session(&thread_id).await?;
+                client.start_turn(thread_id, combined_prompt).await?;
             }
             Some(session_id) => {
                 let (rollout_path, _forked_session_id) =
                     SessionHandler::fork_rollout_file(&session_id)
                         .map_err(|e| ExecutorError::FollowUpNotSupported(e.to_string()))?;
-                let overrides = conversation_params;
                 let response = client
-                    .resume_conversation(rollout_path.clone(), overrides)
+                    .resume_thread(rollout_path.clone(), thread_params)
                     .await?;
                 tracing::debug!(
                     "resuming session using rollout file {}, response {:?}",
                     rollout_path.display(),
                     response
                 );
-                let conversation_id = response.conversation_id;
-                client.register_session(&conversation_id).await?;
-                client.add_conversation_listener(conversation_id).await?;
-                client
-                    .send_user_message(conversation_id, combined_prompt)
-                    .await?;
+                let thread_id = response.thread.id;
+                client.register_session(&thread_id).await?;
+                client.start_turn(thread_id, combined_prompt).await?;
             }
         }
         Ok(())

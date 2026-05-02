@@ -10,16 +10,21 @@ use std::{
 
 use async_trait::async_trait;
 use codex_app_server_protocol::{
-    AddConversationListenerParams, AddConversationSubscriptionResponse, ApplyPatchApprovalResponse,
-    ClientInfo, ClientNotification, ClientRequest, ExecCommandApprovalResponse,
-    GetAuthStatusParams, GetAuthStatusResponse, InitializeParams, InitializeResponse, InputItem,
-    JSONRPCError, JSONRPCNotification, JSONRPCRequest, JSONRPCResponse, ListMcpServerStatusParams,
-    ListMcpServerStatusResponse, NewConversationParams, NewConversationResponse, RequestId,
-    ResumeConversationParams, ResumeConversationResponse, ReviewStartParams, ReviewStartResponse,
-    ReviewTarget, SendUserMessageParams, SendUserMessageResponse, ServerNotification,
-    ServerRequest,
+    ApplyPatchApprovalResponse, ChatgptAuthTokensRefreshResponse, ClientInfo, ClientNotification,
+    ClientRequest,
+    CommandExecutionApprovalDecision, CommandExecutionRequestApprovalResponse,
+    DynamicToolCallOutputContentItem, DynamicToolCallResponse, FileChangeApprovalDecision,
+    ExecCommandApprovalResponse, FileChangeRequestApprovalResponse, GetAuthStatusParams,
+    GetAuthStatusResponse,
+    GrantedPermissionProfile, InitializeCapabilities, InitializeParams, InitializeResponse,
+    JSONRPCError,
+    JSONRPCNotification, JSONRPCRequest, JSONRPCResponse, ListMcpServerStatusParams,
+    ListMcpServerStatusResponse, McpServerElicitationAction, McpServerElicitationRequestResponse,
+    PermissionGrantScope, PermissionsRequestApprovalResponse, RequestId, RequestPermissionProfile,
+    ReviewStartParams, ReviewStartResponse, ReviewTarget, ServerRequest, ThreadResumeParams,
+    ThreadResumeResponse, ThreadStartParams, ThreadStartResponse, ToolRequestUserInputAnswer,
+    ToolRequestUserInputResponse, TurnStartParams, TurnStartResponse, UserInput,
 };
-use codex_protocol::{ThreadId, protocol::ReviewDecision};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{self, Value};
 use tokio::{
@@ -40,7 +45,7 @@ pub struct AppServerClient {
     rpc: OnceLock<JsonRpcPeer>,
     log_writer: LogWriter,
     approvals: Option<Arc<dyn ExecutorApprovalService>>,
-    conversation_id: Mutex<Option<ThreadId>>,
+    thread_id: Mutex<Option<String>>,
     pending_feedback: Mutex<VecDeque<String>>,
     auto_approve: bool,
     repo_context: RepoContext,
@@ -65,7 +70,7 @@ impl AppServerClient {
             log_writer,
             approvals,
             auto_approve,
-            conversation_id: Mutex::new(None),
+            thread_id: Mutex::new(None),
             pending_feedback: Mutex::new(VecDeque::new()),
             repo_context,
             commit_reminder,
@@ -96,7 +101,10 @@ impl AppServerClient {
                     title: None,
                     version: env!("CARGO_PKG_VERSION").to_string(),
                 },
-                capabilities: None,
+                capabilities: Some(InitializeCapabilities {
+                    experimental_api: true,
+                    opt_out_notification_methods: None,
+                }),
             },
         };
 
@@ -105,64 +113,77 @@ impl AppServerClient {
         self.send_message(&ClientNotification::Initialized).await
     }
 
-    pub async fn new_conversation(
+    pub async fn start_thread(
         &self,
-        params: NewConversationParams,
-    ) -> Result<NewConversationResponse, ExecutorError> {
-        let request = ClientRequest::NewConversation {
+        params: ThreadStartParams,
+    ) -> Result<ThreadStartResponse, ExecutorError> {
+        let request = ClientRequest::ThreadStart {
             request_id: self.next_request_id(),
             params,
         };
-        self.send_request(request, "newConversation").await
+        self.send_request(request, "thread/start").await
     }
 
-    pub async fn resume_conversation(
+    pub async fn resume_thread(
         &self,
         rollout_path: std::path::PathBuf,
-        overrides: NewConversationParams,
-    ) -> Result<ResumeConversationResponse, ExecutorError> {
-        let request = ClientRequest::ResumeConversation {
+        overrides: ThreadStartParams,
+    ) -> Result<ThreadResumeResponse, ExecutorError> {
+        let request = ClientRequest::ThreadResume {
             request_id: self.next_request_id(),
-            params: ResumeConversationParams {
+            params: ThreadResumeParams {
+                thread_id: String::new(),
                 path: Some(rollout_path),
-                overrides: Some(overrides),
-                conversation_id: None,
+                model: overrides.model,
+                model_provider: overrides.model_provider,
+                service_tier: overrides.service_tier,
+                cwd: overrides.cwd,
+                approval_policy: overrides.approval_policy,
+                approvals_reviewer: overrides.approvals_reviewer,
+                sandbox: overrides.sandbox,
+                permission_profile: overrides.permission_profile,
+                config: overrides.config,
+                base_instructions: overrides.base_instructions,
+                developer_instructions: overrides.developer_instructions,
+                personality: overrides.personality,
                 history: None,
+                exclude_turns: false,
+                persist_extended_history: overrides.persist_extended_history,
             },
         };
-        self.send_request(request, "resumeConversation").await
+        self.send_request(request, "thread/resume").await
     }
 
-    pub async fn add_conversation_listener(
+    pub async fn start_turn(
         &self,
-        conversation_id: codex_protocol::ThreadId,
-    ) -> Result<AddConversationSubscriptionResponse, ExecutorError> {
-        let request = ClientRequest::AddConversationListener {
-            request_id: self.next_request_id(),
-            params: AddConversationListenerParams {
-                conversation_id,
-                experimental_raw_events: false,
-            },
-        };
-        self.send_request(request, "addConversationListener").await
-    }
-
-    pub async fn send_user_message(
-        &self,
-        conversation_id: codex_protocol::ThreadId,
+        thread_id: String,
         message: String,
-    ) -> Result<SendUserMessageResponse, ExecutorError> {
-        let request = ClientRequest::SendUserMessage {
+    ) -> Result<TurnStartResponse, ExecutorError> {
+        let request = ClientRequest::TurnStart {
             request_id: self.next_request_id(),
-            params: SendUserMessageParams {
-                conversation_id,
-                items: vec![InputItem::Text {
+            params: TurnStartParams {
+                thread_id,
+                input: vec![UserInput::Text {
                     text: message,
                     text_elements: vec![],
                 }],
+                responsesapi_client_metadata: None,
+                environments: None,
+                cwd: None,
+                approval_policy: None,
+                approvals_reviewer: None,
+                sandbox_policy: None,
+                permission_profile: None,
+                model: None,
+                service_tier: None,
+                effort: None,
+                summary: None,
+                personality: None,
+                output_schema: None,
+                collaboration_mode: None,
             },
         };
-        self.send_request(request, "sendUserMessage").await
+        self.send_request(request, "turn/start").await
     }
 
     pub async fn get_auth_status(&self) -> Result<GetAuthStatusResponse, ExecutorError> {
@@ -201,6 +222,7 @@ impl AppServerClient {
             params: ListMcpServerStatusParams {
                 cursor,
                 limit: None,
+                detail: None,
             },
         };
         self.send_request(request, "mcpServerStatus/list").await
@@ -219,28 +241,13 @@ impl AppServerClient {
                     .request_tool_approval("edit", input, &params.call_id)
                     .await
                     .map_err(|err| {
-                        if !matches!(
-                            err,
-                            ExecutorError::ExecutorApprovalError(ExecutorApprovalError::Cancelled)
-                        ) {
-                            tracing::error!(
-                                "Codex apply_patch approval failed for call_id={}: {err}",
-                                params.call_id
-                            );
-                        }
+                        tracing::error!(
+                            "Codex apply_patch approval failed for call_id={}: {err}",
+                            params.call_id
+                        );
                         err
                     })?;
-                self.log_writer
-                    .log_raw(
-                        &Approval::approval_response(
-                            params.call_id,
-                            "codex.apply_patch".to_string(),
-                            status.clone(),
-                        )
-                        .raw(),
-                    )
-                    .await?;
-                let (decision, feedback) = self.review_decision(&status).await?;
+                let (decision, feedback) = self.review_decision(&status);
                 let response = ApplyPatchApprovalResponse { decision };
                 send_server_response(peer, request_id, response).await?;
                 if let Some(message) = feedback {
@@ -257,23 +264,12 @@ impl AppServerClient {
                     .await
                     .map_err(|err| {
                         tracing::error!(
-                            "Codex exec_command approval failed for call_id={}: {err}",
+                            "Codex exec command approval failed for call_id={}: {err}",
                             params.call_id
                         );
                         err
                     })?;
-                self.log_writer
-                    .log_raw(
-                        &Approval::approval_response(
-                            params.call_id,
-                            "codex.exec_command".to_string(),
-                            status.clone(),
-                        )
-                        .raw(),
-                    )
-                    .await?;
-
-                let (decision, feedback) = self.review_decision(&status).await?;
+                let (decision, feedback) = self.review_decision(&status);
                 let response = ExecCommandApprovalResponse { decision };
                 send_server_response(peer, request_id, response).await?;
                 if let Some(message) = feedback {
@@ -282,18 +278,154 @@ impl AppServerClient {
                 }
                 Ok(())
             }
-            ServerRequest::CommandExecutionRequestApproval { .. }
-            | ServerRequest::FileChangeRequestApproval { .. }
-            | ServerRequest::ToolRequestUserInput { .. }
-            | ServerRequest::DynamicToolCall { .. }
-            | ServerRequest::ChatgptAuthTokensRefresh { .. } => {
-                // These are unreachable until switching to v2 APIs for starting the session.
-                // https://github.com/openai/codex/blob/cbd7d0d54330443887852b21636c816f60f1bde8/codex-rs/app-server-protocol/src/protocol/common.rs#L445
-                tracing::error!("received unsupported server request: {:?}", request);
-                Err(
-                    ExecutorApprovalError::RequestFailed("unsupported server request".to_string())
-                        .into(),
-                )
+            ServerRequest::CommandExecutionRequestApproval { request_id, params } => {
+                let input = serde_json::to_value(&params)
+                    .map_err(|err| ExecutorError::Io(io::Error::other(err.to_string())))?;
+                let status = self
+                    .request_tool_approval("bash", input, &params.item_id)
+                    .await
+                    .map_err(|err| {
+                        tracing::error!(
+                            "Codex command approval failed for item_id={}: {err}",
+                            params.item_id
+                        );
+                        err
+                    })?;
+                self.log_writer
+                    .log_raw(
+                        &Approval::approval_response(
+                            params.item_id.clone(),
+                            "codex.command_execution".to_string(),
+                            status.clone(),
+                        )
+                        .raw(),
+                    )
+                    .await?;
+                let (decision, feedback) = self.command_approval_decision(&status);
+                let response = CommandExecutionRequestApprovalResponse { decision };
+                send_server_response(peer, request_id, response).await?;
+                if let Some(message) = feedback {
+                    tracing::debug!("queueing command denial feedback: {message}");
+                    self.enqueue_feedback(message).await;
+                }
+                Ok(())
+            }
+            ServerRequest::FileChangeRequestApproval { request_id, params } => {
+                let input = serde_json::to_value(&params)
+                    .map_err(|err| ExecutorError::Io(io::Error::other(err.to_string())))?;
+                let status = self
+                    .request_tool_approval("edit", input, &params.item_id)
+                    .await
+                    .map_err(|err| {
+                        tracing::error!(
+                            "Codex file-change approval failed for item_id={}: {err}",
+                            params.item_id
+                        );
+                        err
+                    })?;
+                self.log_writer
+                    .log_raw(
+                        &Approval::approval_response(
+                            params.item_id.clone(),
+                            "codex.file_change".to_string(),
+                            status.clone(),
+                        )
+                        .raw(),
+                    )
+                    .await?;
+
+                let (decision, feedback) = self.file_change_approval_decision(&status);
+                let response = FileChangeRequestApprovalResponse { decision };
+                send_server_response(peer, request_id, response).await?;
+                if let Some(message) = feedback {
+                    tracing::debug!("queueing file-change denial feedback: {message}");
+                    self.enqueue_feedback(message).await;
+                }
+                Ok(())
+            }
+            ServerRequest::ToolRequestUserInput { request_id, params } => {
+                let answers = params
+                    .questions
+                    .iter()
+                    .map(|question| {
+                        let selected = question
+                            .options
+                            .as_ref()
+                            .and_then(|options| options.first())
+                            .map(|option| option.label.clone())
+                            .map(|label| vec![label])
+                            .unwrap_or_default();
+                        (
+                            question.id.clone(),
+                            ToolRequestUserInputAnswer { answers: selected },
+                        )
+                    })
+                    .collect();
+                let response = ToolRequestUserInputResponse { answers };
+                send_server_response(peer, request_id, response).await
+            }
+            ServerRequest::McpServerElicitationRequest {
+                request_id,
+                params: _,
+            } => {
+                let response = McpServerElicitationRequestResponse {
+                    action: McpServerElicitationAction::Cancel,
+                    content: None,
+                    meta: None,
+                };
+                send_server_response(peer, request_id, response).await
+            }
+            ServerRequest::PermissionsRequestApproval { request_id, params } => {
+                let input = serde_json::to_value(&params)
+                    .map_err(|err| ExecutorError::Io(io::Error::other(err.to_string())))?;
+                let status = self
+                    .request_tool_approval("permissions", input, &params.item_id)
+                    .await
+                    .map_err(|err| {
+                        tracing::error!(
+                            "Codex permissions approval failed for item_id={}: {err}",
+                            params.item_id
+                        );
+                        err
+                    })?;
+                let response = PermissionsRequestApprovalResponse {
+                    permissions: self.granted_permissions_for_status(&status, params.permissions),
+                    scope: PermissionGrantScope::Turn,
+                    strict_auto_review: None,
+                };
+                send_server_response(peer, request_id, response).await
+            }
+            ServerRequest::DynamicToolCall { request_id, params } => {
+                tracing::warn!(
+                    "dynamic tool call not supported (namespace={:?}, tool={})",
+                    params.namespace,
+                    params.tool
+                );
+                let response = DynamicToolCallResponse {
+                    content_items: vec![DynamicToolCallOutputContentItem::InputText {
+                        text: format!(
+                            "Dynamic tool calls are not supported by this executor: {}",
+                            params.tool
+                        ),
+                    }],
+                    success: false,
+                };
+                send_server_response(peer, request_id, response).await
+            }
+            ServerRequest::ChatgptAuthTokensRefresh {
+                request_id,
+                params: _,
+            } => {
+                let auth = self.get_auth_status().await?;
+                let token = auth.auth_token.ok_or_else(|| {
+                    ExecutorApprovalError::request_failed("missing auth token for refresh")
+                })?;
+                let response = ChatgptAuthTokensRefreshResponse {
+                    access_token: token,
+                    chatgpt_account_id: "unknown".to_string(),
+                    chatgpt_plan_type: None,
+                };
+                send_server_response(peer, request_id, response).await
             }
         }
     }
@@ -317,10 +449,10 @@ impl AppServerClient {
             .await?)
     }
 
-    pub async fn register_session(&self, conversation_id: &ThreadId) -> Result<(), ExecutorError> {
+    pub async fn register_session(&self, thread_id: &str) -> Result<(), ExecutorError> {
         {
-            let mut guard = self.conversation_id.lock().await;
-            guard.replace(*conversation_id);
+            let mut guard = self.thread_id.lock().await;
+            guard.replace(thread_id.to_string());
         }
         self.flush_pending_feedback().await;
         Ok(())
@@ -347,16 +479,16 @@ impl AppServerClient {
         self.rpc().next_request_id()
     }
 
-    async fn review_decision(
+    fn command_approval_decision(
         &self,
         status: &ApprovalStatus,
-    ) -> Result<(ReviewDecision, Option<String>), ExecutorError> {
+    ) -> (CommandExecutionApprovalDecision, Option<String>) {
         if self.auto_approve {
-            return Ok((ReviewDecision::ApprovedForSession, None));
+            return (CommandExecutionApprovalDecision::AcceptForSession, None);
         }
 
-        let outcome = match status {
-            ApprovalStatus::Approved => (ReviewDecision::Approved, None),
+        match status {
+            ApprovalStatus::Approved => (CommandExecutionApprovalDecision::Accept, None),
             ApprovalStatus::Denied { reason } => {
                 let feedback = reason
                     .as_ref()
@@ -364,15 +496,78 @@ impl AppServerClient {
                     .filter(|s| !s.is_empty())
                     .map(|s| s.to_string());
                 if feedback.is_some() {
-                    (ReviewDecision::Abort, feedback)
+                    (CommandExecutionApprovalDecision::Decline, feedback)
                 } else {
-                    (ReviewDecision::Denied, None)
+                    (CommandExecutionApprovalDecision::Decline, None)
                 }
             }
-            ApprovalStatus::TimedOut => (ReviewDecision::Denied, None),
-            ApprovalStatus::Pending => (ReviewDecision::Denied, None),
-        };
-        Ok(outcome)
+            ApprovalStatus::TimedOut => (CommandExecutionApprovalDecision::Decline, None),
+            ApprovalStatus::Pending => (CommandExecutionApprovalDecision::Decline, None),
+        }
+    }
+
+    fn file_change_approval_decision(
+        &self,
+        status: &ApprovalStatus,
+    ) -> (FileChangeApprovalDecision, Option<String>) {
+        if self.auto_approve {
+            return (FileChangeApprovalDecision::AcceptForSession, None);
+        }
+
+        match status {
+            ApprovalStatus::Approved => (FileChangeApprovalDecision::Accept, None),
+            ApprovalStatus::Denied { reason } => {
+                let feedback = reason
+                    .as_ref()
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string());
+                (FileChangeApprovalDecision::Decline, feedback)
+            }
+            ApprovalStatus::TimedOut => (FileChangeApprovalDecision::Decline, None),
+            ApprovalStatus::Pending => (FileChangeApprovalDecision::Decline, None),
+        }
+    }
+
+    fn granted_permissions_for_status(
+        &self,
+        status: &ApprovalStatus,
+        requested: RequestPermissionProfile,
+    ) -> GrantedPermissionProfile {
+        match status {
+            ApprovalStatus::Approved => GrantedPermissionProfile {
+                network: requested.network,
+                file_system: requested.file_system,
+            },
+            _ => GrantedPermissionProfile {
+                network: None,
+                file_system: None,
+            },
+        }
+    }
+
+    fn review_decision(&self, status: &ApprovalStatus) -> (codex_protocol::protocol::ReviewDecision, Option<String>) {
+        if self.auto_approve {
+            return (codex_protocol::protocol::ReviewDecision::ApprovedForSession, None);
+        }
+
+        match status {
+            ApprovalStatus::Approved => (codex_protocol::protocol::ReviewDecision::Approved, None),
+            ApprovalStatus::Denied { reason } => {
+                let feedback = reason
+                    .as_ref()
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string());
+                if feedback.is_some() {
+                    (codex_protocol::protocol::ReviewDecision::Abort, feedback)
+                } else {
+                    (codex_protocol::protocol::ReviewDecision::Denied, None)
+                }
+            }
+            ApprovalStatus::TimedOut => (codex_protocol::protocol::ReviewDecision::Denied, None),
+            ApprovalStatus::Pending => (codex_protocol::protocol::ReviewDecision::Denied, None),
+        }
     }
 
     async fn enqueue_feedback(&self, message: String) {
@@ -393,9 +588,9 @@ impl AppServerClient {
             return;
         }
 
-        let Some(conversation_id) = *self.conversation_id.lock().await else {
+        let Some(thread_id) = self.thread_id.lock().await.clone() else {
             tracing::warn!(
-                "pending Codex feedback but conversation id unavailable; dropping {} messages",
+                "pending Codex feedback but thread id unavailable; dropping {} messages",
                 messages.len()
             );
             return;
@@ -406,34 +601,48 @@ impl AppServerClient {
             if trimmed.is_empty() {
                 continue;
             }
-            self.spawn_user_message(conversation_id, format!("User feedback: {trimmed}"));
+            self.spawn_turn_start(thread_id.clone(), format!("User feedback: {trimmed}"));
         }
     }
 
-    fn spawn_user_message(&self, conversation_id: ThreadId, message: String) {
+    fn spawn_turn_start(&self, thread_id: String, message: String) {
         let peer = self.rpc().clone();
         let cancel = self.cancel.clone();
-        let request = ClientRequest::SendUserMessage {
+        let request = ClientRequest::TurnStart {
             request_id: peer.next_request_id(),
-            params: SendUserMessageParams {
-                conversation_id,
-                items: vec![InputItem::Text {
+            params: TurnStartParams {
+                thread_id,
+                input: vec![UserInput::Text {
                     text: message,
                     text_elements: vec![],
                 }],
+                responsesapi_client_metadata: None,
+                environments: None,
+                cwd: None,
+                approval_policy: None,
+                approvals_reviewer: None,
+                sandbox_policy: None,
+                permission_profile: None,
+                model: None,
+                service_tier: None,
+                effort: None,
+                summary: None,
+                personality: None,
+                output_schema: None,
+                collaboration_mode: None,
             },
         };
         tokio::spawn(async move {
             if let Err(err) = peer
-                .request::<SendUserMessageResponse, _>(
+                .request::<TurnStartResponse, _>(
                     request_id(&request),
                     &request,
-                    "sendUserMessage",
+                    "turn/start",
                     cancel,
                 )
                 .await
             {
-                tracing::error!("failed to send user message: {err}");
+                tracing::error!("failed to start turn: {err}");
             }
         });
     }
@@ -485,26 +694,11 @@ impl JsonRpcCallbacks for AppServerClient {
         raw: &str,
         notification: JSONRPCNotification,
     ) -> Result<bool, ExecutorError> {
-        let raw =
-            if let Ok(mut server_notification) = serde_json::from_str::<ServerNotification>(raw) {
-                if let ServerNotification::SessionConfigured(session_configured) =
-                    &mut server_notification
-                {
-                    // history can be large, which might get truncated during transmission, corrupting the JSON line and losing valuable session and model information.
-                    session_configured.initial_messages = None;
-                    Cow::Owned(serde_json::to_string(&server_notification)?)
-                } else {
-                    Cow::Borrowed(raw)
-                }
-            } else {
-                Cow::Borrowed(raw)
-            };
+        let raw = Cow::Borrowed(raw);
         self.log_writer.log_raw(&raw).await?;
 
         let method = notification.method.as_str();
-        if !method.starts_with("codex/event") {
-            return Ok(false);
-        }
+        let is_turn_completed = method == "turn/completed";
 
         if method.ends_with("turn_aborted") {
             tracing::debug!("codex turn aborted; flushing feedback queue");
@@ -512,19 +706,20 @@ impl JsonRpcCallbacks for AppServerClient {
             return Ok(false);
         }
 
-        let has_finished = method
-            .strip_prefix("codex/event/")
-            .is_some_and(|suffix| suffix == "task_complete");
+        let has_finished = is_turn_completed
+            || method
+                .strip_prefix("codex/event/")
+                .is_some_and(|suffix| suffix == "task_complete" || suffix == "turn_complete");
 
         if has_finished
             && self.commit_reminder
             && !self.commit_reminder_sent.swap(true, Ordering::SeqCst)
             && let status = self.repo_context.check_uncommitted_changes().await
             && !status.is_empty()
-            && let Some(conversation_id) = *self.conversation_id.lock().await
+            && let Some(thread_id) = self.thread_id.lock().await.clone()
         {
             let prompt = format!("{}\n{}", self.commit_reminder_prompt, status);
-            self.spawn_user_message(conversation_id, prompt);
+            self.spawn_turn_start(thread_id, prompt);
             return Ok(false);
         }
 
@@ -557,11 +752,10 @@ where
 fn request_id(request: &ClientRequest) -> RequestId {
     match request {
         ClientRequest::Initialize { request_id, .. }
-        | ClientRequest::NewConversation { request_id, .. }
+        | ClientRequest::ThreadStart { request_id, .. }
         | ClientRequest::GetAuthStatus { request_id, .. }
-        | ClientRequest::ResumeConversation { request_id, .. }
-        | ClientRequest::AddConversationListener { request_id, .. }
-        | ClientRequest::SendUserMessage { request_id, .. }
+        | ClientRequest::ThreadResume { request_id, .. }
+        | ClientRequest::TurnStart { request_id, .. }
         | ClientRequest::ReviewStart { request_id, .. }
         | ClientRequest::McpServerStatusList { request_id, .. } => request_id.clone(),
         _ => unreachable!("request_id called for unsupported request variant"),
