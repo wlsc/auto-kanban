@@ -32,6 +32,16 @@ async fn main() -> Result<(), AutoKanbanError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
+    // Layer 4: Panic hook — synchronously kill all registered child processes
+    std::panic::set_hook(Box::new(|info| {
+        if let Ok(entries) = utils::pid_registry::load_all_entries() {
+            for (_, entry) in entries {
+                utils::pid_registry::kill_orphaned_process_group(entry.pgid);
+            }
+        }
+        eprintln!("Panic: {info}");
+    }));
+
     sentry_utils::init_once(SentrySource::Backend);
 
     let log_level = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
@@ -44,6 +54,9 @@ async fn main() -> Result<(), AutoKanbanError> {
         .with(tracing_subscriber::fmt::layer().with_filter(env_filter))
         .with(sentry_layer())
         .init();
+
+    // Layer 3: Parent death watcher — detect if CLI wrapper (or terminal) dies
+    utils::parent_watcher::spawn_parent_death_watcher();
 
     // Create asset directory if it doesn't exist
     if !asset_dir().exists() {

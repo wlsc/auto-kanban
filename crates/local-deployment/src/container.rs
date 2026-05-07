@@ -128,7 +128,26 @@ impl LocalContainerService {
         map.get(id).cloned()
     }
 
-    pub async fn add_child_to_store(&self, id: Uuid, exec: AsyncGroupChild) {
+    pub async fn add_child_to_store(&self, id: Uuid, mut exec: AsyncGroupChild) {
+        // Register in PID file for crash recovery
+        #[cfg(unix)]
+        {
+            if let Some(pid) = exec.inner().id() {
+                let pgid = nix::unistd::getpgid(Some(nix::unistd::Pid::from_raw(pid as i32)))
+                    .map(|p| p.as_raw())
+                    .unwrap_or(pid as i32);
+                let entry = utils::pid_registry::PidEntry {
+                    pgid,
+                    pid,
+                    parent_pid: std::process::id(),
+                    spawned_at: chrono::Utc::now(),
+                };
+                if let Err(e) = utils::pid_registry::register_child(id, entry) {
+                    tracing::warn!("Failed to register child PID for {id}: {e}");
+                }
+            }
+        }
+
         let mut map = self.child_store.write().await;
         map.insert(id, Arc::new(RwLock::new(exec)));
         drop(map);
@@ -136,6 +155,11 @@ impl LocalContainerService {
     }
 
     pub async fn remove_child_from_store(&self, id: &Uuid) {
+        // Unregister from PID file
+        if let Err(e) = utils::pid_registry::unregister_child(id) {
+            tracing::warn!("Failed to unregister child PID for {id}: {e}");
+        }
+
         let mut map = self.child_store.write().await;
         map.remove(id);
         drop(map);
@@ -1473,31 +1497,46 @@ impl ContainerService for LocalContainerService {
         tracing::info!("Killing all running processes");
         let running_processes = ExecutionProcess::find_running(&self.db.pool).await?;
 
-        tracing::info!(
-            "Found {} running processes to kill",
+        if running_processes.is_empty() {
+            eprintln!("\n🛑 Shutting down — no running agents to stop.");
+            return Ok(());
+        }
+
+        eprintln!(
+            "\n🛑 Shutting down — stopping {} running agent(s):",
             running_processes.len()
         );
 
         for process in running_processes {
-            tracing::info!(
-                "Killing process: id={}, run_reason={:?}",
-                process.id,
-                process.run_reason
-            );
+            let agent_name = match &process.executor_action.0 {
+                db::models::execution_process::ExecutorActionField::ExecutorAction(action) => {
+                    action
+                        .base_executor()
+                        .map(|e| e.to_string())
+                        .unwrap_or_else(|| format!("{:?}", process.run_reason))
+                }
+                _ => format!("{:?}", process.run_reason),
+            };
+
+            eprintln!("   • Killing {} (id: {})", agent_name, process.id);
+
             if let Err(error) = self
                 .stop_execution(&process, ExecutionProcessStatus::Killed)
                 .await
             {
+                eprintln!("     ✗ Failed: {error}");
                 tracing::error!(
                     "Failed to cleanly kill running execution process {:?}: {:?}",
                     process,
                     error
                 );
             } else {
+                eprintln!("     ✓ Stopped");
                 tracing::info!("Successfully killed process: id={}", process.id);
             }
         }
 
+        eprintln!("   Done.\n");
         Ok(())
     }
 }

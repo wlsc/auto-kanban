@@ -255,6 +255,9 @@ pub trait ContainerService {
 
     /// Cleanup executions marked as running in the db, call at startup
     async fn cleanup_orphan_executions(&self) -> Result<(), ContainerError> {
+        // Kill any orphaned OS processes from previous crash via PID registry
+        utils::pid_registry::kill_stale_entries();
+
         let running_processes = ExecutionProcess::find_running(&self.db().pool).await?;
         for process in running_processes {
             tracing::info!(

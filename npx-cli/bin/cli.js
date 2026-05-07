@@ -190,11 +190,15 @@ async function main() {
     const modeLabel = LOCAL_DEV_MODE ? " (local dev)" : "";
     console.log(`Starting auto-kanban v${CLI_VERSION}${modeLabel}...`);
     await extractAndRun("auto-kanban", (bin) => {
-      if (platform === "win32") {
-        execSync(`"${bin}"`, { stdio: "inherit" });
-      } else {
-        execSync(`"${bin}"`, { stdio: "inherit" });
-      }
+      const proc = spawn(bin, [], { stdio: "inherit" });
+      proc.on("exit", (code) => process.exit(code || 0));
+      proc.on("error", (e) => {
+        console.error("auto-kanban error:", e.message);
+        process.exit(1);
+      });
+      process.on("SIGINT", () => proc.kill("SIGINT"));
+      process.on("SIGTERM", () => proc.kill("SIGTERM"));
+      process.on("SIGHUP", () => proc.kill("SIGHUP"));
     });
   }
 }
