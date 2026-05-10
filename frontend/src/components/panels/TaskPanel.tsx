@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProject } from '@/contexts/ProjectContext';
 import { useTaskAttemptsWithSessions } from '@/hooks/useTaskAttempts';
 import { useTaskAttemptWithSession } from '@/hooks/useTaskAttempt';
 import { useNavigateWithSearch } from '@/hooks';
 import { useUserSystem } from '@/components/ConfigProvider';
+import { useWorkspacesTokenUsage } from '@/hooks/useWorkspaceTokenUsage';
 import { paths } from '@/lib/paths';
 import type { TaskWithAttemptStatus } from 'shared/types';
 import type { WorkspaceWithSession } from '@/types/attempt';
@@ -13,6 +15,7 @@ import { PlusIcon } from 'lucide-react';
 import { CreateAttemptDialog } from '@/components/dialogs/tasks/CreateAttemptDialog';
 import WYSIWYGEditor from '@/components/ui/wysiwyg';
 import { DataTable, type ColumnDef } from '@/components/ui/table';
+import { ContextUsageGauge } from '@/components/ui-new/primitives/ContextUsageGauge';
 
 interface TaskPanelProps {
   task: TaskWithAttemptStatus | null;
@@ -62,10 +65,20 @@ const TaskPanel = ({ task }: TaskPanelProps) => {
     return to(years, 'year');
   };
 
-  const displayedAttempts = [...attempts].sort(
-    (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  const displayedAttempts = useMemo(
+    () =>
+      [...attempts].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ),
+    [attempts]
   );
+
+  const attemptIds = useMemo(
+    () => displayedAttempts.map((a) => a.id),
+    [displayedAttempts]
+  );
+  const tokenUsageMap = useWorkspacesTokenUsage(attemptIds);
 
   if (!task) {
     return (
@@ -90,6 +103,16 @@ const TaskPanel = ({ task }: TaskPanelProps) => {
       header: '',
       accessor: (attempt) => attempt.branch || '—',
       className: 'pr-4',
+    },
+    {
+      id: 'context',
+      header: '',
+      accessor: (attempt) => {
+        const usage = tokenUsageMap.get(attempt.id);
+        if (!usage) return null;
+        return <ContextUsageGauge tokenUsageInfo={usage} />;
+      },
+      className: 'pr-2 w-8',
     },
     {
       id: 'time',

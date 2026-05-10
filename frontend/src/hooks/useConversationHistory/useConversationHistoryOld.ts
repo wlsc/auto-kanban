@@ -4,9 +4,11 @@ import {
   ExecutionProcessStatus,
   NormalizedEntry,
   PatchType,
+  TokenUsageInfo,
   ToolStatus,
 } from 'shared/types';
 import { useExecutionProcessesContext } from '@/contexts/ExecutionProcessesContext';
+import { useEntries } from '@/contexts/EntriesContext';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { streamJsonPatchEntries } from '@/utils/streamJsonPatchEntries';
 import type {
@@ -31,6 +33,7 @@ export const useConversationHistoryOld = ({
 }: UseConversationHistoryParams): UseConversationHistoryResult => {
   const { executionProcessesVisible: executionProcessesRaw } =
     useExecutionProcessesContext();
+  const { setTokenUsageInfo } = useEntries();
   const executionProcesses = useRef<ExecutionProcess[]>(executionProcessesRaw);
   const displayedExecutionProcesses = useRef<ExecutionProcessStateStore>({});
   const loadedInitialEntries = useRef(false);
@@ -146,6 +149,7 @@ export const useConversationHistoryOld = ({
       let lastProcessFailedOrKilled = false;
       let needsSetup = false;
       let setupHelpText: string | undefined;
+      let latestTokenUsageInfo: TokenUsageInfo | null = null;
 
       // Create user messages + tool calls for setup/cleanup scripts
       const allEntries = Object.values(executionProcessState)
@@ -186,6 +190,17 @@ export const useConversationHistoryOld = ({
               'user'
             );
             entries.push(userPatchTypeWithKey);
+
+            // Extract latest token usage info before filtering
+            const tokenUsageEntry = p.entries.findLast(
+              (e) =>
+                e.type === 'NORMALIZED_ENTRY' &&
+                e.content.entry_type.type === 'token_usage_info'
+            );
+            if (tokenUsageEntry?.type === 'NORMALIZED_ENTRY') {
+              latestTokenUsageInfo = tokenUsageEntry.content
+                .entry_type as TokenUsageInfo;
+            }
 
             // Remove user messages (replaced with custom one) and token usage info (displayed separately)
             const filteredEntries = p.entries.filter(
@@ -366,9 +381,12 @@ export const useConversationHistoryOld = ({
         );
       }
 
+      // Update token usage info in context
+      setTokenUsageInfo(latestTokenUsageInfo);
+
       return allEntries;
     },
-    []
+    [setTokenUsageInfo]
   );
 
   const emitEntries = useCallback(

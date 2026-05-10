@@ -8,9 +8,11 @@ use db::models::{
     workspace::Workspace,
 };
 use deployment::Deployment;
+use executors::logs::TokenUsageInfo;
 use serde::{Deserialize, Serialize};
+use services::services::container::ContainerService;
 use ts_rs::TS;
-use utils::response::ApiResponse;
+use utils::{log_msg::LogMsg, response::ApiResponse};
 use uuid::Uuid;
 
 use crate::{DeploymentImpl, error::ApiError};
@@ -46,6 +48,8 @@ pub struct WorkspaceSummary {
     pub has_unseen_turns: bool,
     /// PR status for this workspace (if any PR exists)
     pub pr_status: Option<MergeStatus>,
+    /// Current context token usage for the latest execution process
+    pub token_usage: Option<TokenUsageInfo>,
 }
 
 /// Response containing summaries for requested workspaces
@@ -129,7 +133,20 @@ pub async fn get_workspace_summaries(
         futures_util::future::join_all(diff_futures).await;
     let diff_stats: HashMap<Uuid, DiffStats> = diff_results.into_iter().flatten().collect();
 
-    // 8. Assemble response
+    // 8. Extract token usage from in-memory stores for running processes
+    let mut token_usage_map: HashMap<Uuid, TokenUsageInfo> = HashMap::new();
+    for (workspace_id, info) in &latest_processes {
+        if info.status == ExecutionProcessStatus::Running {
+            if let Some(store) = deployment.container().get_msg_store_by_id(&info.execution_process_id).await {
+                let history = store.get_history();
+                if let Some(usage) = extract_token_usage_from_msg_store(&history) {
+                    token_usage_map.insert(*workspace_id, usage);
+                }
+            }
+        }
+    }
+
+    // 9. Assemble response
     let summaries: Vec<WorkspaceSummary> = workspaces
         .iter()
         .map(|ws| {
@@ -152,6 +169,7 @@ pub async fn get_workspace_summaries(
                 has_running_dev_server: dev_server_workspaces.contains(&id),
                 has_unseen_turns: unseen_workspaces.contains(&id),
                 pr_status: pr_statuses.get(&id).cloned(),
+                token_usage: token_usage_map.remove(&id),
             }
         })
         .collect();
@@ -178,4 +196,47 @@ pub async fn compute_workspace_diff_stats(
         lines_added: stats.lines_added,
         lines_removed: stats.lines_removed,
     })
+}
+
+/// Extract the latest TokenUsageInfo from a running execution process's in-memory log store.
+fn extract_token_usage_from_msg_store(history: &[LogMsg]) -> Option<TokenUsageInfo> {
+    for msg in history.iter().rev() {
+        if let LogMsg::JsonPatch(patch) = msg {
+            let Some(ops) = serde_json::to_value(patch)
+                .ok()
+                .and_then(|v| v.as_array().cloned())
+            else {
+                continue;
+            };
+            for op in ops.iter().rev() {
+                let Some(value) = op
+                    .get("value")
+                    .filter(|_| op.get("op").and_then(|o| o.as_str()) == Some("add"))
+                else {
+                    continue;
+                };
+                if value.get("type").and_then(|t| t.as_str()) != Some("NORMALIZED_ENTRY") {
+                    continue;
+                }
+                let Some(entry_type) = value
+                    .get("content")
+                    .and_then(|c| c.get("entry_type"))
+                else {
+                    continue;
+                };
+                if entry_type.get("type").and_then(|t| t.as_str()) == Some("token_usage_info") {
+                    if let (Some(total), Some(window)) = (
+                        entry_type.get("total_tokens").and_then(|v| v.as_u64()),
+                        entry_type.get("model_context_window").and_then(|v| v.as_u64()),
+                    ) {
+                        return Some(TokenUsageInfo {
+                            total_tokens: total as u32,
+                            model_context_window: window as u32,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    None
 }

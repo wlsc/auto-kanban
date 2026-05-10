@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
 //
 import { useReview } from '@/contexts/ReviewProvider';
 import { useClickedElements } from '@/contexts/ClickedElementsProvider';
-import { useEntries } from '@/contexts/EntriesContext';
+import { useEntries, useTokenUsage } from '@/contexts/EntriesContext';
 import { useKeySubmitFollowUp, Scope } from '@/keyboard';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 import { useProject } from '@/contexts/ProjectContext';
@@ -64,6 +64,7 @@ import { PrCommentsDialog } from '@/components/dialogs/tasks/PrCommentsDialog';
 import type { NormalizedComment } from '@/components/ui/wysiwyg/nodes/pr-comment-node';
 import type { Session } from 'shared/types';
 import { buildAgentPrompt } from '@/utils/promptMessage';
+import { ContextUsageGauge } from '@/components/ui-new/primitives/ContextUsageGauge';
 
 interface TaskFollowUpSectionProps {
   task: TaskWithAttemptStatus;
@@ -333,6 +334,7 @@ export function TaskFollowUpSection({
 
   // Check if there's a pending approval - users shouldn't be able to type during approvals
   const { entries } = useEntries();
+  const tokenUsageInfo = useTokenUsage();
   const hasPendingApproval = useMemo(() => {
     return entries.some((entry) => {
       if (entry.type !== 'NORMALIZED_ENTRY') return false;
@@ -791,13 +793,14 @@ export function TaskFollowUpSection({
       {/* Always-visible action bar */}
       <div className="p-4">
         <div className="flex flex-row gap-2 items-center">
-          <div className="flex-1 flex gap-2">
+          <div className="flex-1 flex gap-2 items-center">
             <VariantSelector
               currentProfile={currentProfile}
               selectedVariant={selectedVariant}
               onChange={setSelectedVariant}
               disabled={!isEditable}
             />
+            <ContextUsageGauge tokenUsageInfo={tokenUsageInfo} />
           </div>
 
           {/* Hidden file input for attachment - always present */}

@@ -58,6 +58,7 @@ import { PreviewPanel } from '@/components/panels/PreviewPanel';
 import { DiffsPanel } from '@/components/panels/DiffsPanel';
 import TaskAttemptPanel from '@/components/panels/TaskAttemptPanel';
 import TaskPanel from '@/components/panels/TaskPanel';
+import { AttemptContextUsageBanner } from '@/components/panels/AttemptContextUsageBanner';
 import TodoPanel from '@/components/tasks/TodoPanel';
 import { NewCard, NewCardHeader } from '@/components/ui/new-card';
 import {
@@ -827,6 +828,7 @@ export function ProjectTasks() {
           {({ logs, followUp }) => (
             <>
               <GitErrorBanner />
+              <AttemptContextUsageBanner />
               <div className="flex-1 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0 flex flex-col">{logs}</div>
 

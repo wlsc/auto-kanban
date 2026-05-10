@@ -424,7 +424,11 @@ has_unseen_turns: boolean,
 /**
  * PR status for this workspace (if any PR exists)
  */
-pr_status: MergeStatus | null, };
+pr_status: MergeStatus | null,
+/**
+ * Current context token usage for the latest execution process
+ */
+token_usage: TokenUsageInfo | null, };
 
 export type WorkspaceSummaryResponse = { summaries: Array<WorkspaceSummary>, };
 
