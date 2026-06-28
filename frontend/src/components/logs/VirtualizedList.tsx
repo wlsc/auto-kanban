@@ -135,6 +135,12 @@ const VirtualizedList = ({ attempt, task }: VirtualizedListProps) => {
   return (
     <ApprovalFormProvider>
       <div className="relative flex-1 flex flex-col min-h-0">
+        {loading && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1 rounded-full bg-muted/90 backdrop-blur-sm border text-xs text-muted-foreground shadow-sm">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Loading History</span>
+          </div>
+        )}
         <VirtuosoMessageListLicense
           licenseKey={import.meta.env.VITE_PUBLIC_REACT_VIRTUOSO_LICENSE_KEY}
         >
@@ -161,12 +167,6 @@ const VirtualizedList = ({ attempt, task }: VirtualizedListProps) => {
           </button>
         )}
       </div>
-      {loading && (
-        <div className="float-left top-0 left-0 w-full h-full bg-primary flex flex-col gap-2 justify-center items-center">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <p>Loading History</p>
-        </div>
-      )}
     </ApprovalFormProvider>
   );
 };

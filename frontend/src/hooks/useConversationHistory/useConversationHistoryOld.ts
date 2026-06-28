@@ -62,7 +62,8 @@ export const useConversationHistoryOld = ({
   }, [executionProcessesRaw]);
 
   const loadEntriesForHistoricExecutionProcess = (
-    executionProcess: ExecutionProcess
+    executionProcess: ExecutionProcess,
+    onProgress?: (entries: PatchType[]) => void
   ) => {
     let url = '';
     if (executionProcess.executor_action.typ.type === 'ScriptRequest') {
@@ -73,6 +74,9 @@ export const useConversationHistoryOld = ({
 
     return new Promise<PatchType[]>((resolve) => {
       const controller = streamJsonPatchEntries<PatchType>(url, {
+        onEntries: onProgress
+          ? (entries) => onProgress(entries)
+          : undefined,
         onFinished: (allEntries) => {
           controller.close();
           resolve(allEntries);
@@ -474,14 +478,50 @@ export const useConversationHistoryOld = ({
 
       if (!executionProcesses?.current) return localDisplayedExecutionProcesses;
 
+      let firstBatchEmitted = false;
+
       for (const executionProcess of [
         ...executionProcesses.current,
       ].reverse()) {
         if (executionProcess.status === ExecutionProcessStatus.running)
           continue;
 
-        const entries =
-          await loadEntriesForHistoricExecutionProcess(executionProcess);
+        // Seed the slot so progressive emits can find it
+        localDisplayedExecutionProcesses[executionProcess.id] = {
+          executionProcess,
+          entries: [],
+        };
+
+        const entries = await loadEntriesForHistoricExecutionProcess(
+          executionProcess,
+          (partial) => {
+            const entriesWithKey = partial.map((e, idx) =>
+              patchWithKey(e, executionProcess.id, idx)
+            );
+            localDisplayedExecutionProcesses[executionProcess.id] = {
+              executionProcess,
+              entries: entriesWithKey,
+            };
+            mergeIntoDisplayed((state) => {
+              state[executionProcess.id] = {
+                executionProcess,
+                entries: entriesWithKey,
+              };
+            });
+            // Only emit on the first batch to drop the spinner. Emitting on
+            // every batch causes InitialDataScrollModifier (purgeItemSizes)
+            // to fire repeatedly, making the list flicker. The final complete
+            // state is emitted by the caller after the stream finishes.
+            if (!firstBatchEmitted) {
+              emitEntries(
+                displayedExecutionProcesses.current,
+                'initial',
+                false
+              );
+              firstBatchEmitted = true;
+            }
+          }
+        );
         const entriesWithKey = entries.map((e, idx) =>
           patchWithKey(e, executionProcess.id, idx)
         );
@@ -499,8 +539,14 @@ export const useConversationHistoryOld = ({
         }
       }
 
+      // Ensure the spinner drops even if the stream finished without ever
+      // calling onEntries (e.g. an empty process).
+      if (!firstBatchEmitted) {
+        emitEntries(displayedExecutionProcesses.current, 'initial', false);
+      }
+
       return localDisplayedExecutionProcesses;
-    }, [executionProcesses]);
+    }, [executionProcesses, emitEntries]);
 
   const loadRemainingEntriesInBatches = useCallback(
     async (batchSize: number): Promise<boolean> => {
