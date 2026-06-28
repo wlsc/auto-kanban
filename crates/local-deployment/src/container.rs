@@ -1494,49 +1494,78 @@ impl ContainerService for LocalContainerService {
     }
 
     async fn kill_all_running_processes(&self) -> Result<(), ContainerError> {
+        use std::io::Write;
+
         tracing::info!("Killing all running processes");
         let running_processes = ExecutionProcess::find_running(&self.db.pool).await?;
+        let db_count = running_processes.len();
 
-        if running_processes.is_empty() {
-            eprintln!("\n🛑 Shutting down — no running agents to stop.");
-            return Ok(());
-        }
+        if db_count > 0 {
+            let _ = writeln!(
+                std::io::stderr(),
+                "\n🛑 Shutting down — stopping {db_count} running agent(s):"
+            );
+            let _ = std::io::stderr().flush();
 
-        eprintln!(
-            "\n🛑 Shutting down — stopping {} running agent(s):",
-            running_processes.len()
-        );
+            for process in running_processes {
+                let agent_name = match &process.executor_action.0 {
+                    db::models::execution_process::ExecutorActionField::ExecutorAction(action) => {
+                        action
+                            .base_executor()
+                            .map(|e| e.to_string())
+                            .unwrap_or_else(|| format!("{:?}", process.run_reason))
+                    }
+                    _ => format!("{:?}", process.run_reason),
+                };
 
-        for process in running_processes {
-            let agent_name = match &process.executor_action.0 {
-                db::models::execution_process::ExecutorActionField::ExecutorAction(action) => {
-                    action
-                        .base_executor()
-                        .map(|e| e.to_string())
-                        .unwrap_or_else(|| format!("{:?}", process.run_reason))
-                }
-                _ => format!("{:?}", process.run_reason),
-            };
-
-            eprintln!("   • Killing {} (id: {})", agent_name, process.id);
-
-            if let Err(error) = self
-                .stop_execution(&process, ExecutionProcessStatus::Killed)
-                .await
-            {
-                eprintln!("     ✗ Failed: {error}");
-                tracing::error!(
-                    "Failed to cleanly kill running execution process {:?}: {:?}",
-                    process,
-                    error
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "   • Killing {} (id: {})",
+                    agent_name,
+                    process.id
                 );
-            } else {
-                eprintln!("     ✓ Stopped");
-                tracing::info!("Successfully killed process: id={}", process.id);
+                let _ = std::io::stderr().flush();
+
+                if let Err(error) = self
+                    .stop_execution(&process, ExecutionProcessStatus::Killed)
+                    .await
+                {
+                    let _ = writeln!(std::io::stderr(), "     ✗ Failed: {error}");
+                    let _ = std::io::stderr().flush();
+                    tracing::error!(
+                        "Failed to cleanly kill running execution process {:?}: {:?}",
+                        process,
+                        error
+                    );
+                } else {
+                    let _ = writeln!(std::io::stderr(), "     ✓ Stopped");
+                    let _ = std::io::stderr().flush();
+                    tracing::info!("Successfully killed process: id={}", process.id);
+                }
             }
         }
 
-        eprintln!("   Done.\n");
+        // Backstop: anything still registered on disk that the DB or in-memory
+        // child_store lost track of (drift, missed updates, partial spawns).
+        let leaked = utils::pid_registry::kill_all_registered_children();
+        if leaked > 0 {
+            let _ = writeln!(
+                std::io::stderr(),
+                "   Reaped {leaked} leaked process group(s) from PID registry."
+            );
+            let _ = std::io::stderr().flush();
+            tracing::warn!("Reaped {leaked} leaked process group(s) on shutdown");
+        }
+
+        if db_count == 0 && leaked == 0 {
+            let _ = writeln!(
+                std::io::stderr(),
+                "\n🛑 Shutting down — no running agents to stop."
+            );
+        } else {
+            let _ = writeln!(std::io::stderr(), "   Done.");
+        }
+        let _ = std::io::stderr().flush();
         Ok(())
     }
 }

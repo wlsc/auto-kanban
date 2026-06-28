@@ -163,3 +163,34 @@ pub fn kill_stale_entries() {
         eprintln!("   Cleaned up {killed} orphaned process(es) from previous crash.");
     }
 }
+
+/// Kill every registered process group whose PID is still alive, then
+/// unregister the entry. Used as a backstop on graceful shutdown so that
+/// agents survive in the OS even when the DB or in-memory child store
+/// has lost track of them.
+///
+/// Returns the number of process groups that were signalled.
+pub fn kill_all_registered_children() -> usize {
+    let entries = match load_all_entries() {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("Failed to load PID registry on shutdown: {e}");
+            return 0;
+        }
+    };
+
+    let mut killed = 0;
+    for (id, entry) in entries {
+        if is_process_alive(entry.pid) {
+            tracing::info!(
+                "Killing registered process group {} (execution {id}, pid {})",
+                entry.pgid,
+                entry.pid
+            );
+            kill_orphaned_process_group(entry.pgid);
+            killed += 1;
+        }
+        let _ = unregister_child(&id);
+    }
+    killed
+}
