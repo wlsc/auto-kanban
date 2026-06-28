@@ -88,6 +88,7 @@ export function useSessionSend({
             retry_process_id: null,
             force_when_dirty: null,
             perform_git_reset: null,
+            fresh_session: null,
           });
           return true;
         } catch (e: unknown) {

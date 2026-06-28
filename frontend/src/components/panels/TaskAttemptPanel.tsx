@@ -4,6 +4,7 @@ import VirtualizedList from '@/components/logs/VirtualizedList';
 import { TaskFollowUpSection } from '@/components/tasks/TaskFollowUpSection';
 import { EntriesProvider } from '@/contexts/EntriesContext';
 import { RetryUiProvider } from '@/contexts/RetryUiContext';
+import { FreshSessionProvider } from '@/contexts/FreshSessionContext';
 import type { ReactNode } from 'react';
 
 interface TaskAttemptPanelProps {
@@ -28,14 +29,16 @@ const TaskAttemptPanel = ({
   return (
     <EntriesProvider key={attempt.id}>
       <RetryUiProvider attemptId={attempt.id}>
-        {children({
-          logs: (
-            <VirtualizedList key={attempt.id} attempt={attempt} task={task} />
-          ),
-          followUp: (
-            <TaskFollowUpSection task={task} session={attempt.session} />
-          ),
-        })}
+        <FreshSessionProvider>
+          {children({
+            logs: (
+              <VirtualizedList key={attempt.id} attempt={attempt} task={task} />
+            ),
+            followUp: (
+              <TaskFollowUpSection task={task} session={attempt.session} />
+            ),
+          })}
+        </FreshSessionProvider>
       </RetryUiProvider>
     </EntriesProvider>
   );

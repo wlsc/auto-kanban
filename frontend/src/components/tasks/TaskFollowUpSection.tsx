@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils';
 import { useReview } from '@/contexts/ReviewProvider';
 import { useClickedElements } from '@/contexts/ClickedElementsProvider';
 import { useEntries, useTokenUsage } from '@/contexts/EntriesContext';
+import { useFreshSession } from '@/contexts/FreshSessionContext';
 import { useKeySubmitFollowUp, Scope } from '@/keyboard';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 import { useProject } from '@/contexts/ProjectContext';
@@ -347,6 +348,8 @@ export function TaskFollowUpSection({
   }, [entries]);
 
   // Send follow-up action
+  const { pending: freshSessionPending, disarm: disarmFreshSession } =
+    useFreshSession();
   const { isSendingFollowUp, followUpError, setFollowUpError, onSendFollowUp } =
     useFollowUpSend({
       sessionId,
@@ -356,11 +359,13 @@ export function TaskFollowUpSection({
       clickedMarkdown,
       executor: latestProfileId?.executor ?? null,
       variant: selectedVariant,
+      freshSession: freshSessionPending,
       clearComments,
       clearClickedElements,
       onAfterSendCleanup: () => {
         cancelDebouncedSave(); // Cancel any pending debounced save to avoid race condition
         setLocalMessage(''); // Clear local state immediately
+        disarmFreshSession(); // Fresh-session flag is one-shot — clear after send
         // Scratch deletion is handled by the backend when the queued message is consumed
       },
     });

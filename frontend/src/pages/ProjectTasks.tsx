@@ -828,7 +828,10 @@ export function ProjectTasks() {
           {({ logs, followUp }) => (
             <>
               <GitErrorBanner />
-              <AttemptContextUsageBanner />
+              <AttemptContextUsageBanner
+                workspaceId={attempt?.id}
+                taskId={selectedTask.id}
+              />
               <div className="flex-1 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0 flex flex-col">{logs}</div>
 

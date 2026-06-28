@@ -15,6 +15,10 @@ pub enum SessionError {
     WorkspaceNotFound,
     #[error("Executor mismatch: session uses {expected} but request specified {actual}")]
     ExecutorMismatch { expected: String, actual: String },
+    #[error("Invalid request: {0}")]
+    InvalidRequest(String),
+    #[error("Session is busy: {0}")]
+    Busy(String),
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize, TS)]

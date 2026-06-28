@@ -10,7 +10,7 @@ use axum::{
 };
 use db::models::{
     coding_agent_turn::CodingAgentTurn,
-    execution_process::{ExecutionProcess, ExecutionProcessRunReason},
+    execution_process::{ExecutionProcess, ExecutionProcessRunReason, ExecutionProcessStatus},
     scratch::{Scratch, ScratchType},
     session::{CreateSession, Session, SessionError},
     workspace::{Workspace, WorkspaceError},
@@ -90,6 +90,10 @@ pub struct CreateFollowUpAttempt {
     pub retry_process_id: Option<Uuid>,
     pub force_when_dirty: Option<bool>,
     pub perform_git_reset: Option<bool>,
+    /// When true, ignore the prior agent session and spawn a fresh
+    /// session for this follow-up (clears the agent's context window).
+    /// Mutually exclusive with `retry_process_id`.
+    pub fresh_session: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, TS)]
@@ -144,6 +148,32 @@ pub async fn follow_up(
             .await?;
     }
 
+    let fresh_session = payload.fresh_session.unwrap_or(false);
+
+    // `fresh_session` clears the agent's prior context; `retry_process_id` rewinds
+    // within the existing one. They are different operations and can't be combined.
+    if fresh_session && payload.retry_process_id.is_some() {
+        return Err(ApiError::Session(SessionError::InvalidRequest(
+            "fresh_session cannot be combined with retry_process_id".to_string(),
+        )));
+    }
+
+    // Refuse to start a fresh session while a coding-agent process is still running
+    // for this session — that process owns the current context and would race with
+    // the new spawn.
+    if fresh_session {
+        let processes = ExecutionProcess::find_by_session_id(pool, session.id, false).await?;
+        let has_running_agent = processes.iter().any(|p| {
+            matches!(p.run_reason, ExecutionProcessRunReason::CodingAgent)
+                && matches!(p.status, ExecutionProcessStatus::Running)
+        });
+        if has_running_agent {
+            return Err(ApiError::Session(SessionError::Busy(
+                "Cannot start a fresh session while an agent process is running".to_string(),
+            )));
+        }
+    }
+
     if let Some(proc_id) = payload.retry_process_id {
         let force_when_dirty = payload.force_when_dirty.unwrap_or(false);
         let perform_git_reset = payload.perform_git_reset.unwrap_or(true);
@@ -153,7 +183,11 @@ pub async fn follow_up(
             .await?;
     }
 
-    let latest_session_info = CodingAgentTurn::find_latest_session_info(pool, session.id).await?;
+    let latest_session_info = if fresh_session {
+        None
+    } else {
+        CodingAgentTurn::find_latest_session_info(pool, session.id).await?
+    };
 
     let prompt = payload.prompt;
 

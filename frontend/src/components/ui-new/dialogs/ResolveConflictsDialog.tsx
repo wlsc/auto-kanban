@@ -134,6 +134,7 @@ const ResolveConflictsDialogImpl =
             retry_process_id: null,
             force_when_dirty: null,
             perform_git_reset: null,
+            fresh_session: null,
           });
 
           // Invalidate queries and wait for them to complete

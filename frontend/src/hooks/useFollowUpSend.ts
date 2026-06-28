@@ -11,6 +11,7 @@ type Args = {
   clickedMarkdown?: string;
   executor: BaseCodingAgent | null;
   variant: string | null;
+  freshSession?: boolean;
   clearComments: () => void;
   clearClickedElements?: () => void;
   onAfterSendCleanup: () => void;
@@ -24,6 +25,7 @@ export function useFollowUpSend({
   clickedMarkdown,
   executor,
   variant,
+  freshSession,
   clearComments,
   clearClickedElements,
   onAfterSendCleanup,
@@ -50,6 +52,7 @@ export function useFollowUpSend({
         retry_process_id: null,
         force_when_dirty: null,
         perform_git_reset: null,
+        fresh_session: freshSession ?? null,
       };
       await sessionsApi.followUp(sessionId, body);
       if (!isSlashCommand) {
@@ -74,6 +77,7 @@ export function useFollowUpSend({
     clickedMarkdown,
     executor,
     variant,
+    freshSession,
     clearComments,
     clearClickedElements,
     onAfterSendCleanup,

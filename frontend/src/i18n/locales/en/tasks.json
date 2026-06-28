@@ -3,6 +3,17 @@
     "dropImagesHere": "Drop images here",
     "supportedFormats": "PNG, JPG, GIF, WebP, SVG supported"
   },
+  "contextBanner": {
+    "usage": "Context: {{used}} / {{total}} ({{percent}}%)",
+    "pendingFresh": "Next message will start a fresh session",
+    "startFresh": "Start fresh session"
+  },
+  "clearContextDialog": {
+    "title": "Start a fresh agent session?",
+    "body": "Your next message will start a brand-new session. The agent's working memory for this attempt will be discarded. The conversation history stays visible here, but the agent will no longer reference earlier turns when generating its next response.",
+    "cancel": "Cancel",
+    "confirm": "Start fresh session"
+  },
   "gitPanel": {
     "create": {
       "warnings": {
