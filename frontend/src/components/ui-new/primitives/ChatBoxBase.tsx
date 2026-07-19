@@ -26,6 +26,12 @@ export interface VariantProps {
   onCustomise?: () => void;
 }
 
+export interface EffortProps {
+  selected: string | null;
+  options: string[];
+  onChange: (effort: string | null) => void;
+}
+
 export enum VisualVariant {
   NORMAL = 'NORMAL',
   FEEDBACK = 'FEEDBACK',

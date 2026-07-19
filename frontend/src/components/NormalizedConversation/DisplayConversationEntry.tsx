@@ -69,7 +69,7 @@ const getEntryIcon = (entryType: NormalizedEntryType) => {
   if (entryType.type === 'assistant_message') {
     return <Bot className={iconSize} />;
   }
-  if (entryType.type === 'system_message') {
+  if (entryType.type === 'system_message' || entryType.type === 'system_init') {
     return <Settings className={iconSize} />;
   }
   if (entryType.type === 'thinking') {
@@ -172,6 +172,7 @@ const getStatusIndicator = (entryType: NormalizedEntryType) => {
 const shouldRenderMarkdown = (entryType: NormalizedEntryType) =>
   entryType.type === 'assistant_message' ||
   entryType.type === 'system_message' ||
+  entryType.type === 'system_init' ||
   entryType.type === 'thinking' ||
   entryType.type === 'tool_use';
 
@@ -748,7 +749,8 @@ function DisplayConversationEntry({
 
   // Handle NormalizedEntry
   const entryType = entry.entry_type;
-  const isSystem = entryType.type === 'system_message';
+  const isSystem =
+    entryType.type === 'system_message' || entryType.type === 'system_init';
   const isError = entryType.type === 'error_message';
   const isToolUse = entryType.type === 'tool_use';
   const isUserMessage = entryType.type === 'user_message';

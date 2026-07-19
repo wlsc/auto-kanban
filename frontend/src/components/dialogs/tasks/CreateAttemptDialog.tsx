@@ -11,6 +11,8 @@ import {
 import { Button } from '@/components/ui/button';
 import RepoBranchSelector from '@/components/tasks/RepoBranchSelector';
 import { ExecutorProfileSelector } from '@/components/settings';
+import { EffortSelector } from '@/components/tasks/EffortSelector';
+import { getEffortOptions } from '@/utils/executor';
 import { useAttemptCreation } from '@/hooks/useAttemptCreation';
 import {
   useNavigateWithSearch,
@@ -25,7 +27,11 @@ import { useUserSystem } from '@/components/ConfigProvider';
 import { paths } from '@/lib/paths';
 import NiceModal, { useModal } from '@ebay/nice-modal-react';
 import { defineModal } from '@/lib/modals';
-import type { ExecutorProfileId, BaseCodingAgent } from 'shared/types';
+import type {
+  ExecutorProfileId,
+  BaseCodingAgent,
+  EffortLevel,
+} from 'shared/types';
 import { useKeySubmitTask, Scope } from '@/keyboard';
 
 export interface CreateAttemptDialogProps {
@@ -50,6 +56,9 @@ const CreateAttemptDialogImpl = NiceModal.create<CreateAttemptDialogProps>(
 
     const [userSelectedProfile, setUserSelectedProfile] =
       useState<ExecutorProfileId | null>(null);
+    const [selectedEffort, setSelectedEffort] = useState<EffortLevel | null>(
+      null
+    );
 
     const { data: attempts = [], isLoading: isLoadingAttempts } =
       useTaskAttemptsWithSessions(taskId, {
@@ -94,6 +103,7 @@ const CreateAttemptDialogImpl = NiceModal.create<CreateAttemptDialogProps>(
     useEffect(() => {
       if (!modal.visible) {
         setUserSelectedProfile(null);
+        setSelectedEffort(null);
         resetBranchSelection();
       }
     }, [modal.visible, resetBranchSelection]);
@@ -119,6 +129,15 @@ const CreateAttemptDialogImpl = NiceModal.create<CreateAttemptDialogProps>(
     }, [latestAttempt?.session?.executor, config?.executor_profile]);
 
     const effectiveProfile = userSelectedProfile ?? defaultProfile;
+
+    const effortOptions = getEffortOptions(effectiveProfile?.executor);
+
+    // Drop a selected effort the current executor doesn't offer.
+    useEffect(() => {
+      if (selectedEffort && !effortOptions.includes(selectedEffort)) {
+        setSelectedEffort(null);
+      }
+    }, [effortOptions, selectedEffort]);
 
     const isLoadingInitial =
       isLoadingRepos ||
@@ -152,6 +171,7 @@ const CreateAttemptDialogImpl = NiceModal.create<CreateAttemptDialogProps>(
         await createAttempt({
           profile: effectiveProfile,
           repos,
+          reasoningEffort: selectedEffort,
         });
 
         modal.hide();
@@ -187,6 +207,17 @@ const CreateAttemptDialogImpl = NiceModal.create<CreateAttemptDialogProps>(
                   profiles={profiles}
                   selectedProfile={effectiveProfile}
                   onProfileSelect={setUserSelectedProfile}
+                  showLabel={true}
+                />
+              </div>
+            )}
+
+            {effortOptions.length > 0 && (
+              <div className="space-y-2">
+                <EffortSelector
+                  executor={effectiveProfile?.executor}
+                  selectedEffort={selectedEffort}
+                  onChange={setSelectedEffort}
                   showLabel={true}
                 />
               </div>

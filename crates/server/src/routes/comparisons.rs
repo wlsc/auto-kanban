@@ -1,9 +1,4 @@
-use axum::{
-    Json, Router,
-    extract::State,
-    response::Json as ResponseJson,
-    routing::post,
-};
+use axum::{Json, Router, extract::State, response::Json as ResponseJson, routing::post};
 use db::models::{
     session::Session,
     task::{CreateTask, Task, TaskType},
@@ -46,11 +41,12 @@ pub async fn create_comparison_task(
     let mut task_description: Option<String> = None;
 
     for (i, workspace_id) in payload.workspace_ids.iter().enumerate() {
-        let workspace = Workspace::find_by_id(pool, *workspace_id)
-            .await?
-            .ok_or(ApiError::Workspace(WorkspaceError::ValidationError(
-                format!("Workspace {} not found", workspace_id),
-            )))?;
+        let workspace =
+            Workspace::find_by_id(pool, *workspace_id)
+                .await?
+                .ok_or(ApiError::Workspace(WorkspaceError::ValidationError(
+                    format!("Workspace {} not found", workspace_id),
+                )))?;
 
         let task = Task::find_by_id(pool, workspace.task_id)
             .await?

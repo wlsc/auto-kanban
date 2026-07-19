@@ -91,9 +91,7 @@ pub async fn create_project(
         .create_project(&deployment.db().pool, deployment.repo(), payload)
         .await
     {
-        Ok(project) => {
-            Ok(ResponseJson(ApiResponse::success(project)))
-        }
+        Ok(project) => Ok(ResponseJson(ApiResponse::success(project))),
         Err(ProjectServiceError::DuplicateGitRepoPath) => Ok(ResponseJson(ApiResponse::error(
             "Duplicate repository path provided",
         ))),
@@ -285,9 +283,7 @@ pub async fn add_project_repository(
         )
         .await
     {
-        Ok(repository) => {
-            Ok(ResponseJson(ApiResponse::success(repository)))
-        }
+        Ok(repository) => Ok(ResponseJson(ApiResponse::success(repository))),
         Err(ProjectServiceError::PathNotFound(_)) => {
             tracing::warn!(
                 "Failed to add repository to project {}: path does not exist",
@@ -352,9 +348,7 @@ pub async fn delete_project_repository(
         .delete_repository(&deployment.db().pool, project_id, repo_id)
         .await
     {
-        Ok(()) => {
-            Ok(ResponseJson(ApiResponse::success(())))
-        }
+        Ok(()) => Ok(ResponseJson(ApiResponse::success(()))),
         Err(ProjectServiceError::RepositoryNotFound) => {
             tracing::warn!(
                 "Failed to remove repository {} from project {}: not found",

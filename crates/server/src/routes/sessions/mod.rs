@@ -215,6 +215,7 @@ pub async fn follow_up(
                 prompt,
                 executor_profile_id: executor_profile_id.clone(),
                 working_dir,
+                reasoning_effort: None,
             },
         )
     };

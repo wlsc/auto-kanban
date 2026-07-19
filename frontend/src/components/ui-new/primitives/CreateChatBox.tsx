@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   type DropzoneProps,
   type EditorProps,
+  type EffortProps,
   type VariantProps,
 } from './ChatBoxBase';
 import { PrimaryButton } from './PrimaryButton';
@@ -56,6 +57,7 @@ interface CreateChatBoxProps {
   disabled?: boolean;
   executor: ExecutorProps;
   variant?: VariantProps;
+  effort?: EffortProps;
   saveAsDefault?: SaveAsDefaultProps;
   error?: string | null;
   repoIds?: string[];
@@ -82,6 +84,7 @@ export function CreateChatBox({
   disabled = false,
   executor,
   variant,
+  effort,
   saveAsDefault,
   error,
   repoIds,
@@ -103,6 +106,10 @@ export function CreateChatBox({
   const canSend = editor.value.trim().length > 0 && !isDisabled;
   const variantLabel = toPrettyCase(variant?.selected || 'DEFAULT');
   const variantOptions = variant?.options ?? [];
+  const effortOptions = effort?.options ?? [];
+  const effortLabel = effort?.selected
+    ? effort.selected.toUpperCase()
+    : t('chatBox.effortAuto');
   const isDragActive = dropzone?.isDragActive ?? false;
 
   const handleCmdEnter = () => {
@@ -259,6 +266,33 @@ export function CreateChatBox({
                     </DropdownMenuItem>
                   </>
                 )}
+              </ToolbarDropdown>
+            </>
+          )}
+
+          {effort && effortOptions.length > 0 && (
+            <>
+              <span
+                className="mx-half h-3 w-px shrink-0 bg-border/70"
+                aria-hidden="true"
+              />
+              <ToolbarDropdown
+                label={effortLabel}
+                disabled={isDisabled}
+                className="h-auto shrink-0 border-0 bg-transparent px-0 py-0 hover:bg-transparent focus-visible:ring-0"
+              >
+                <DropdownMenuLabel>{t('chatBox.effort')}</DropdownMenuLabel>
+                {effortOptions.map((effortName) => (
+                  <DropdownMenuItem
+                    key={effortName}
+                    icon={
+                      effort.selected === effortName ? CheckIcon : undefined
+                    }
+                    onClick={() => effort.onChange(effortName)}
+                  >
+                    {effortName.toUpperCase()}
+                  </DropdownMenuItem>
+                ))}
               </ToolbarDropdown>
             </>
           )}

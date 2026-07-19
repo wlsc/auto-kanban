@@ -25,6 +25,7 @@ pub fn normalize_logs(
     msg_store: Arc<MsgStore>,
     worktree_path: &Path,
     entry_index_provider: EntryIndexProvider,
+    reasoning_effort: Option<String>,
 ) {
     normalize_stderr_logs(msg_store.clone(), entry_index_provider.clone());
 
@@ -87,10 +88,19 @@ pub fn normalize_logs(
                         && let Some(model) = model
                     {
                         state.model_reported = true;
+                        let content = match &reasoning_effort {
+                            Some(effort) => {
+                                format!("model: {model}  reasoning effort: {effort}")
+                            }
+                            None => format!("model: {model}"),
+                        };
                         let entry = NormalizedEntry {
                             timestamp: None,
-                            entry_type: NormalizedEntryType::SystemMessage,
-                            content: format!("model: {model}"),
+                            entry_type: NormalizedEntryType::SystemInit {
+                                model: Some(model),
+                                effort: reasoning_effort.clone(),
+                            },
+                            content,
                             metadata: None,
                         };
                         add_normalized_entry(&msg_store, &entry_index_provider, entry);

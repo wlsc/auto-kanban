@@ -22,7 +22,7 @@ Before installing Auto Kanban, ensure you have:
 ## Safety Notice
 
 <Warning>
-Auto Kanban runs AI agents with --dangerously-skip-permissions/--yolo flags by default so they can work autonomously without constant approval prompts. Each task runs in an isolated git worktree, preventing agents from interfering with each other.
+Auto Kanban runs AI agents autonomously so they can work without constant approval prompts. Claude Code runs in **auto mode** by default: a background classifier reviews each action and blocks anything irreversible, destructive, or aimed outside your environment, rather than skipping permission checks entirely. Other agents (and some profiles) still run with skip-permission flags such as `--dangerously-skip-permissions` or `--yolo`. Each task runs in an isolated git worktree, preventing agents from interfering with each other.
 Agents can still perform system-level actions, so review their work and keep backups.
 </Warning>
 

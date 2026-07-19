@@ -10,11 +10,11 @@ use codex_login::AuthManager;
 use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use codex_protocol::{
     config_types::SandboxMode as CodexSandboxMode,
+    protocol::AskForApproval as CodexAskForApproval,
     protocol::{
         AgentMessageEvent, ErrorEvent, Event, EventMsg, Op as CoreOp, RolloutItem, SessionSource,
         TokenUsageInfo, TurnContextItem,
     },
-    protocol::AskForApproval as CodexAskForApproval,
 };
 use serde_json::json;
 
@@ -193,12 +193,11 @@ impl Codex {
             .map_err(|err| ExecutorError::Io(std::io::Error::other(err.to_string())))?;
         let config = self.build_core_config(current_dir, instructions).await?;
         let auth_manager = AuthManager::shared_from_config(&config, true);
-        let local_runtime_paths =
-            ExecServerRuntimePaths::from_optional_paths(
-                config.codex_self_exe.clone(),
-                config.codex_linux_sandbox_exe.clone(),
-            )
-            .map_err(|err| ExecutorError::Io(std::io::Error::other(err.to_string())))?;
+        let local_runtime_paths = ExecServerRuntimePaths::from_optional_paths(
+            config.codex_self_exe.clone(),
+            config.codex_linux_sandbox_exe.clone(),
+        )
+        .map_err(|err| ExecutorError::Io(std::io::Error::other(err.to_string())))?;
         let environment_manager = Arc::new(EnvironmentManager::new(
             EnvironmentManagerArgs::from_env(local_runtime_paths),
         ));

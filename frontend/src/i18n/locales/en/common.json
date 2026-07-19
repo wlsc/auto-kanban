@@ -259,7 +259,9 @@
   },
   "chatBox": {
     "variants": "Variants",
-    "customise": "Customise"
+    "customise": "Customise",
+    "effort": "Reasoning Effort",
+    "effortAuto": "Effort"
   },
   "projects": {
     "noProjectFound": "No project found",

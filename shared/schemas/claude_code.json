@@ -35,7 +35,31 @@
         "null"
       ]
     },
+    "reasoning_effort": {
+      "title": "Reasoning Effort",
+      "description": "Extended-thinking effort level: low, medium, high, xhigh, max",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        null
+      ]
+    },
     "dangerously_skip_permissions": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "auto_mode": {
+      "title": "Auto Mode",
+      "description": "Run in auto mode: a background classifier reviews actions instead of skipping all permission checks",
       "type": [
         "boolean",
         "null"

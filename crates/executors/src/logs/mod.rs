@@ -85,6 +85,13 @@ pub enum NormalizedEntryType {
         status: ToolStatus,
     },
     SystemMessage,
+    /// Session initialization notice carrying the resolved model and, when the
+    /// executor supports it, the configured reasoning effort. Rendered as a
+    /// distinct line with an effort badge next to the model.
+    SystemInit {
+        model: Option<String>,
+        effort: Option<String>,
+    },
     ErrorMessage {
         error_type: NormalizedEntryError,
     },

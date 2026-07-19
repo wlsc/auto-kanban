@@ -77,10 +77,25 @@ pub struct ClaudeCode {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(
+        title = "Reasoning Effort",
+        description = "Extended-thinking effort level: low, medium, high, xhigh, max"
+    )]
+    pub reasoning_effort: Option<crate::executors::EffortLevel>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dangerously_skip_permissions: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(
+        title = "Auto Mode",
+        description = "Run in auto mode: a background classifier reviews actions instead of skipping all permission checks"
+    )]
+    pub auto_mode: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub disable_api_key: Option<bool>,
-    #[serde(default = "default_print_mode", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default = "default_print_mode",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[schemars(description = "Pass the -p flag to Claude Code (defaults to true)")]
     pub print_mode: Option<bool>,
     #[serde(flatten)]
@@ -121,11 +136,14 @@ impl ClaudeCode {
                 PermissionMode::BypassPermissions
             )]);
         }
-        if self.dangerously_skip_permissions.unwrap_or(false) {
+        if self.dangerously_skip_permissions.unwrap_or(false) && !self.auto_mode.unwrap_or(false) {
             builder = builder.extend_params(["--dangerously-skip-permissions"]);
         }
         if let Some(model) = &self.model {
             builder = builder.extend_params(["--model", model]);
+        }
+        if let Some(effort) = &self.reasoning_effort {
+            builder = builder.extend_params(["--effort", effort.as_ref()]);
         }
         builder = builder.extend_params([
             "--verbose",
@@ -144,6 +162,8 @@ impl ClaudeCode {
             PermissionMode::Plan
         } else if self.approvals.unwrap_or(false) {
             PermissionMode::Default
+        } else if self.auto_mode.unwrap_or(false) {
+            PermissionMode::Auto
         } else {
             PermissionMode::BypassPermissions
         }
@@ -243,6 +263,7 @@ impl StandardCodingAgentExecutor for ClaudeCode {
             current_dir,
             entry_index_provider.clone(),
             HistoryStrategy::Default,
+            self.reasoning_effort.map(|e| e.as_ref().to_string()),
         );
 
         // Process stderr logs using the standard stderr processor
@@ -409,6 +430,8 @@ const DEFAULT_CLAUDE_CONTEXT_WINDOW: u32 = 200_000;
 /// Handles log processing and interpretation for Claude executor
 pub struct ClaudeLogProcessor {
     model_name: Option<String>,
+    // Configured reasoning effort label, shown alongside the model in the init entry.
+    reasoning_effort: Option<String>,
     // Map tool_use_id -> structured info for follow-up ToolResult replacement
     tool_map: HashMap<String, ClaudeToolCallInfo>,
     // Strategy controlling how to handle history and user messages
@@ -425,12 +448,13 @@ pub struct ClaudeLogProcessor {
 impl ClaudeLogProcessor {
     #[cfg(test)]
     fn new() -> Self {
-        Self::new_with_strategy(HistoryStrategy::Default)
+        Self::new_with_strategy(HistoryStrategy::Default, None)
     }
 
-    fn new_with_strategy(strategy: HistoryStrategy) -> Self {
+    fn new_with_strategy(strategy: HistoryStrategy, reasoning_effort: Option<String>) -> Self {
         Self {
             model_name: None,
+            reasoning_effort,
             main_model_name: None,
             tool_map: HashMap::new(),
             strategy,
@@ -448,6 +472,7 @@ impl ClaudeLogProcessor {
         current_dir: &Path,
         entry_index_provider: EntryIndexProvider,
         strategy: HistoryStrategy,
+        reasoning_effort: Option<String>,
     ) {
         let current_dir_clone = current_dir.to_owned();
         tokio::spawn(async move {
@@ -455,7 +480,7 @@ impl ClaudeLogProcessor {
             let mut buffer = String::new();
             let worktree_path = current_dir_clone.to_string_lossy().to_string();
             let mut session_id_extracted = false;
-            let mut processor = Self::new_with_strategy(strategy);
+            let mut processor = Self::new_with_strategy(strategy, reasoning_effort);
             // Track pending assistant UUID - only committed when we see a Result message
             let mut pending_assistant_uuid: Option<String> = None;
 
@@ -1597,10 +1622,20 @@ fn extract_model_name(
         && let Some(model) = message.model.as_ref()
     {
         processor.model_name = Some(model.clone());
+        let effort = processor.reasoning_effort.clone();
+        let content = match &effort {
+            Some(effort) => {
+                format!("System initialized with model: {model}  reasoning effort: {effort}")
+            }
+            None => format!("System initialized with model: {model}"),
+        };
         let entry = NormalizedEntry {
             timestamp: None,
-            entry_type: NormalizedEntryType::SystemMessage,
-            content: format!("System initialized with model: {model}"),
+            entry_type: NormalizedEntryType::SystemInit {
+                model: Some(model.clone()),
+                effort,
+            },
+            content,
             metadata: None,
         };
         let id = entry_index_provider.next();
@@ -2199,6 +2234,35 @@ mod tests {
             .collect()
     }
 
+    #[tokio::test]
+    async fn test_reasoning_effort_adds_cli_flag() {
+        // With an effort configured, the `--effort <level>` flag is passed.
+        let with_effort =
+            serde_json::from_str::<ClaudeCode>(r#"{"reasoning_effort":"high"}"#).unwrap();
+        let params = with_effort
+            .build_command_builder()
+            .await
+            .unwrap()
+            .params
+            .unwrap_or_default()
+            .join(" ");
+        assert!(
+            params.contains("--effort high"),
+            "expected `--effort high` in params, got: {params}"
+        );
+
+        // Without an effort, the flag is absent.
+        let without_effort = serde_json::from_str::<ClaudeCode>("{}").unwrap();
+        let params = without_effort
+            .build_command_builder()
+            .await
+            .unwrap()
+            .params
+            .unwrap_or_default()
+            .join(" ");
+        assert!(!params.contains("--effort"));
+    }
+
     fn normalize_helper(
         processor: &mut ClaudeLogProcessor,
         json: &ClaudeJson,
@@ -2234,7 +2298,7 @@ mod tests {
         assert_eq!(entries.len(), 2);
         assert!(matches!(
             entries[0].entry_type,
-            NormalizedEntryType::SystemMessage
+            NormalizedEntryType::SystemInit { .. }
         ));
         assert_eq!(
             entries[0].content,
@@ -2379,8 +2443,11 @@ mod tests {
             plan: None,
             approvals: None,
             model: None,
+            reasoning_effort: None,
+            print_mode: None,
             append_prompt: AppendPrompt::default(),
             dangerously_skip_permissions: None,
+            auto_mode: None,
             cmd: crate::command::CmdOverrides {
                 base_command_override: None,
                 additional_params: None,

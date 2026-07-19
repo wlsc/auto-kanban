@@ -26,8 +26,8 @@ pub fn codex_home() -> Option<PathBuf> {
 
 use async_trait::async_trait;
 use codex_app_server_protocol::{
-    AskForApproval as CodexAskForApproval, ReviewTarget,
-    SandboxMode as CodexSandboxMode, ThreadStartParams,
+    AskForApproval as CodexAskForApproval, ReviewTarget, SandboxMode as CodexSandboxMode,
+    ThreadStartParams,
 };
 use command_group::AsyncCommandGroup;
 use derivative::Derivative;

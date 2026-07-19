@@ -985,6 +985,7 @@ impl LocalContainerService {
                 prompt: queued_data.message.clone(),
                 executor_profile_id: executor_profile_id.clone(),
                 working_dir,
+                reasoning_effort: None,
             })
         };
 

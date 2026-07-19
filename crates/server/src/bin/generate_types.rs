@@ -207,6 +207,7 @@ fn generate_types_content() -> String {
         executors::executors::droid::Autonomy::decl(),
         executors::executors::droid::ReasoningEffortLevel::decl(),
         executors::executors::AppendPrompt::decl(),
+        executors::executors::EffortLevel::decl(),
         executors::actions::coding_agent_initial::CodingAgentInitialRequest::decl(),
         executors::actions::coding_agent_follow_up::CodingAgentFollowUpRequest::decl(),
         executors::actions::review::ReviewRequest::decl(),

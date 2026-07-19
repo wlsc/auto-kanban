@@ -28,10 +28,13 @@ const DisclaimerDialogImpl = NiceModal.create<NoProps>(() => {
           </div>
           <DialogDescription className="text-left space-y-4 pt-4">
             <p>
-              Auto Kanban runs AI coding agents with{' '}
-              <code>--dangerously-skip-permissions</code> / <code>--yolo</code>{' '}
-              by default, giving them unrestricted access to execute code and
-              run commands on your system.
+              Auto Kanban runs AI coding agents autonomously so they can work
+              without constant approval prompts. Claude Code runs in{' '}
+              <code>auto mode</code> by default, where a background classifier
+              reviews each action; other agents may run with{' '}
+              <code>--dangerously-skip-permissions</code> / <code>--yolo</code>,
+              giving them unrestricted access to execute code and run commands
+              on your system.
             </p>
             <p>
               <strong>Important:</strong> Always review what agents are doing

@@ -11,19 +11,17 @@ use std::{
 use async_trait::async_trait;
 use codex_app_server_protocol::{
     ApplyPatchApprovalResponse, ChatgptAuthTokensRefreshResponse, ClientInfo, ClientNotification,
-    ClientRequest,
-    CommandExecutionApprovalDecision, CommandExecutionRequestApprovalResponse,
-    DynamicToolCallOutputContentItem, DynamicToolCallResponse, FileChangeApprovalDecision,
-    ExecCommandApprovalResponse, FileChangeRequestApprovalResponse, GetAuthStatusParams,
-    GetAuthStatusResponse,
-    GrantedPermissionProfile, InitializeCapabilities, InitializeParams, InitializeResponse,
-    JSONRPCError,
-    JSONRPCNotification, JSONRPCRequest, JSONRPCResponse, ListMcpServerStatusParams,
-    ListMcpServerStatusResponse, McpServerElicitationAction, McpServerElicitationRequestResponse,
-    PermissionGrantScope, PermissionsRequestApprovalResponse, RequestId, RequestPermissionProfile,
-    ReviewStartParams, ReviewStartResponse, ReviewTarget, ServerRequest, ThreadResumeParams,
-    ThreadResumeResponse, ThreadStartParams, ThreadStartResponse, ToolRequestUserInputAnswer,
-    ToolRequestUserInputResponse, TurnStartParams, TurnStartResponse, UserInput,
+    ClientRequest, CommandExecutionApprovalDecision, CommandExecutionRequestApprovalResponse,
+    DynamicToolCallOutputContentItem, DynamicToolCallResponse, ExecCommandApprovalResponse,
+    FileChangeApprovalDecision, FileChangeRequestApprovalResponse, GetAuthStatusParams,
+    GetAuthStatusResponse, GrantedPermissionProfile, InitializeCapabilities, InitializeParams,
+    InitializeResponse, JSONRPCError, JSONRPCNotification, JSONRPCRequest, JSONRPCResponse,
+    ListMcpServerStatusParams, ListMcpServerStatusResponse, McpServerElicitationAction,
+    McpServerElicitationRequestResponse, PermissionGrantScope, PermissionsRequestApprovalResponse,
+    RequestId, RequestPermissionProfile, ReviewStartParams, ReviewStartResponse, ReviewTarget,
+    ServerRequest, ThreadResumeParams, ThreadResumeResponse, ThreadStartParams,
+    ThreadStartResponse, ToolRequestUserInputAnswer, ToolRequestUserInputResponse, TurnStartParams,
+    TurnStartResponse, UserInput,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{self, Value};
@@ -546,9 +544,15 @@ impl AppServerClient {
         }
     }
 
-    fn review_decision(&self, status: &ApprovalStatus) -> (codex_protocol::protocol::ReviewDecision, Option<String>) {
+    fn review_decision(
+        &self,
+        status: &ApprovalStatus,
+    ) -> (codex_protocol::protocol::ReviewDecision, Option<String>) {
         if self.auto_approve {
-            return (codex_protocol::protocol::ReviewDecision::ApprovedForSession, None);
+            return (
+                codex_protocol::protocol::ReviewDecision::ApprovedForSession,
+                None,
+            );
         }
 
         match status {

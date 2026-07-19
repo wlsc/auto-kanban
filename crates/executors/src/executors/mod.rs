@@ -8,7 +8,7 @@ use futures_io::Error as FuturesIoError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
-use strum_macros::{Display, EnumDiscriminants, EnumString, VariantNames};
+use strum_macros::{AsRefStr, Display, EnumDiscriminants, EnumString, VariantNames};
 use thiserror::Error;
 use ts_rs::TS;
 use workspace_utils::msg_store::MsgStore;
@@ -87,6 +87,23 @@ pub enum ExecutorError {
     SetupHelperNotSupported,
     #[error("Auth required: {0}")]
     AuthRequired(String),
+}
+
+/// Cross-executor reasoning effort level chosen by the user when starting a task.
+///
+/// Executors expose different native effort scales; this shared enum is mapped
+/// onto each executor's own configuration by [`CodingAgent::apply_reasoning_effort`].
+/// Values mirror the Claude Code `--effort` flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, JsonSchema, AsRefStr)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+#[ts(use_ts_enum)]
+pub enum EffortLevel {
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
 }
 
 #[enum_dispatch]
@@ -194,6 +211,56 @@ impl CodingAgent {
             Self::Copilot(_) | Self::Droid(_) => vec![],
             #[cfg(feature = "qa-mode")]
             Self::QaMock(_) => vec![], // QA mock doesn't need special capabilities
+        }
+    }
+
+    /// Apply a user-selected reasoning effort onto this agent's native config.
+    ///
+    /// Each executor exposes a different effort scale, so the shared
+    /// [`EffortLevel`] is clamped onto the closest supported value. Executors
+    /// without a reasoning-effort concept (Amp, Gemini, Cursor, …) ignore it.
+    pub fn apply_reasoning_effort(&mut self, effort: EffortLevel) {
+        use crate::executors::{codex::ReasoningEffort, droid::ReasoningEffortLevel};
+
+        match self {
+            Self::ClaudeCode(agent) => agent.reasoning_effort = Some(effort),
+            Self::Codex(agent) => {
+                agent.model_reasoning_effort = Some(match effort {
+                    EffortLevel::Low => ReasoningEffort::Low,
+                    EffortLevel::Medium => ReasoningEffort::Medium,
+                    EffortLevel::High => ReasoningEffort::High,
+                    // Codex tops out at xhigh.
+                    EffortLevel::Xhigh | EffortLevel::Max => ReasoningEffort::Xhigh,
+                });
+            }
+            Self::Droid(agent) => {
+                agent.reasoning_effort = Some(match effort {
+                    EffortLevel::Low => ReasoningEffortLevel::Low,
+                    EffortLevel::Medium => ReasoningEffortLevel::Medium,
+                    // Droid tops out at high.
+                    EffortLevel::High | EffortLevel::Xhigh | EffortLevel::Max => {
+                        ReasoningEffortLevel::High
+                    }
+                });
+            }
+            _ => {}
+        }
+    }
+
+    /// The reasoning effort currently configured on this agent, as a display
+    /// label, if the executor supports one and a value is set.
+    pub fn reasoning_effort_label(&self) -> Option<String> {
+        match self {
+            Self::ClaudeCode(agent) => agent.reasoning_effort.map(|e| e.as_ref().to_string()),
+            Self::Codex(agent) => agent
+                .model_reasoning_effort
+                .as_ref()
+                .map(|e| e.as_ref().to_string()),
+            Self::Droid(agent) => agent
+                .reasoning_effort
+                .as_ref()
+                .map(|e| e.as_ref().to_string()),
+            _ => None,
         }
     }
 }
@@ -407,10 +474,7 @@ pub fn build_comparison_task_description(
             "---\n## Solution {letter} — {label} ({executor_label})\n\n",
             label = sol.label
         ));
-        desc.push_str(&format!(
-            "**Worktree path:** `{}`\n",
-            sol.container_ref
-        ));
+        desc.push_str(&format!("**Worktree path:** `{}`\n", sol.container_ref));
         desc.push_str("**Repos:**\n");
         for (repo_name, target_branch) in &sol.repo_paths {
             desc.push_str(&format!(
@@ -480,5 +544,39 @@ mod tests {
         let result: Result<BaseCodingAgent, _> = serde_json::from_str(r#""CURSOR""#);
         assert!(result.is_ok(), "CURSOR should deserialize via serde");
         assert_eq!(result.unwrap(), BaseCodingAgent::CursorAgent);
+    }
+
+    #[test]
+    fn test_apply_reasoning_effort_maps_and_clamps_per_executor() {
+        use crate::executors::{
+            claude::ClaudeCode, codex::Codex, codex::ReasoningEffort, droid::Droid,
+            droid::ReasoningEffortLevel,
+        };
+
+        // Claude passes the level through unchanged.
+        let mut claude = CodingAgent::ClaudeCode(serde_json::from_str::<ClaudeCode>("{}").unwrap());
+        claude.apply_reasoning_effort(EffortLevel::Max);
+        assert_eq!(claude.reasoning_effort_label().as_deref(), Some("max"));
+
+        // Codex clamps `max` down to its top level, `xhigh`.
+        let mut codex = CodingAgent::Codex(serde_json::from_str::<Codex>("{}").unwrap());
+        codex.apply_reasoning_effort(EffortLevel::Max);
+        match &codex {
+            CodingAgent::Codex(c) => {
+                assert_eq!(c.model_reasoning_effort, Some(ReasoningEffort::Xhigh))
+            }
+            _ => unreachable!(),
+        }
+
+        // Droid clamps anything above `high` to `high`.
+        let mut droid =
+            CodingAgent::Droid(serde_json::from_str::<Droid>(r#"{"autonomy":"high"}"#).unwrap());
+        droid.apply_reasoning_effort(EffortLevel::Xhigh);
+        match &droid {
+            CodingAgent::Droid(d) => {
+                assert_eq!(d.reasoning_effort, Some(ReasoningEffortLevel::High))
+            }
+            _ => unreachable!(),
+        }
     }
 }

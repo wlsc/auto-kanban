@@ -6,6 +6,8 @@ interface ChatSystemMessageProps {
   className?: string;
   expanded?: boolean;
   onToggle?: () => void;
+  /** Optional reasoning-effort label rendered as a badge next to the content. */
+  effort?: string | null;
 }
 
 export function ChatSystemMessage({
@@ -13,6 +15,7 @@ export function ChatSystemMessage({
   className,
   expanded,
   onToggle,
+  effort,
 }: ChatSystemMessageProps) {
   return (
     <div
@@ -26,12 +29,18 @@ export function ChatSystemMessage({
       <InfoIcon className="shrink-0 size-icon-base pt-0.5" />
       <span
         className={cn(
+          'min-w-0',
           !expanded && 'truncate',
           expanded && 'whitespace-pre-wrap break-all'
         )}
       >
         {content}
       </span>
+      {effort && (
+        <span className="shrink-0 rounded-sm border border-brand/40 bg-brand/10 px-half text-xs uppercase tracking-wide text-brand">
+          {effort}
+        </span>
+      )}
     </div>
   );
 }

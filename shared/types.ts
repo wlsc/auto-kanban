@@ -10,7 +10,7 @@ export type CreateProject = { name: string, repositories: Array<CreateProjectRep
 
 export type UpdateProject = { name: string | null, };
 
-export type SearchResult = { path: string, is_file: boolean, match_type: SearchMatchType,
+export type SearchResult = { path: string, is_file: boolean, match_type: SearchMatchType, 
 /**
  * Ranking score based on git history (higher = more recently/frequently edited)
  */
@@ -60,15 +60,15 @@ export type DraftWorkspaceLinkedIssue = { issue_id: string, simple_id: string, t
 
 export type DraftWorkspaceRepo = { repo_id: string, target_branch: string, };
 
-export type DraftIssueData = { title: string, description: string | null, status_id: string,
+export type DraftIssueData = { title: string, description: string | null, status_id: string, 
 /**
  * Stored as the string value of IssuePriority (e.g. "urgent", "high", "medium", "low")
  */
-priority: string | null, assignee_ids: Array<string>, tag_ids: Array<string>, create_draft_workspace: boolean,
+priority: string | null, assignee_ids: Array<string>, tag_ids: Array<string>, create_draft_workspace: boolean, 
 /**
  * The project this draft belongs to
  */
-project_id: string,
+project_id: string, 
 /**
  * Parent issue ID if creating a sub-issue
  */
@@ -80,43 +80,43 @@ export type WorkspaceNotesData = { content: string, };
 
 export type WorkspacePanelStateData = { right_main_panel_mode: string | null, is_left_main_panel_visible: boolean, };
 
-export type UiPreferencesData = {
+export type UiPreferencesData = { 
 /**
  * Preferred repo actions per repo
  */
-repo_actions: { [key in string]?: string },
+repo_actions: { [key in string]?: string }, 
 /**
  * Expanded/collapsed state for UI sections
  */
-expanded: { [key in string]?: boolean },
+expanded: { [key in string]?: boolean }, 
 /**
  * Context bar position
  */
-context_bar_position: string | null,
+context_bar_position: string | null, 
 /**
  * Pane sizes
  */
-pane_sizes: { [key in string]?: JsonValue },
+pane_sizes: { [key in string]?: JsonValue }, 
 /**
  * Collapsed paths per workspace in file tree
  */
-collapsed_paths: { [key in string]?: Array<string> },
+collapsed_paths: { [key in string]?: Array<string> }, 
 /**
  * Preferred file-search repo
  */
-file_search_repo_id: string | null,
+file_search_repo_id: string | null, 
 /**
  * Global left sidebar visibility
  */
-is_left_sidebar_visible: boolean | null,
+is_left_sidebar_visible: boolean | null, 
 /**
  * Global right sidebar visibility
  */
-is_right_sidebar_visible: boolean | null,
+is_right_sidebar_visible: boolean | null, 
 /**
  * Global terminal visibility
  */
-is_terminal_visible: boolean | null,
+is_terminal_visible: boolean | null, 
 /**
  * Workspace-specific panel states
  */
@@ -142,7 +142,7 @@ export type WorkspaceWithStatus = { is_running: boolean, is_errored: boolean, id
 
 export type Session = { id: string, workspace_id: string, executor: string | null, created_at: string, updated_at: string, };
 
-export type ExecutionProcess = { id: string, session_id: string, run_reason: ExecutionProcessRunReason, executor_action: ExecutorAction, status: ExecutionProcessStatus, exit_code: bigint | null,
+export type ExecutionProcess = { id: string, session_id: string, run_reason: ExecutionProcessRunReason, executor_action: ExecutorAction, status: ExecutionProcessStatus, exit_code: bigint | null, 
 /**
  * dropped: true if this process is excluded from the current
  * history view (due to restore/trimming). Hidden from logs/timeline;
@@ -172,11 +172,11 @@ export type CreateApprovalRequest = { tool_name: string, tool_input: JsonValue, 
 
 export type ApprovalResponse = { execution_process_id: string, status: ApprovalStatus, };
 
-export type Diff = { change: DiffChangeKind, oldPath: string | null, newPath: string | null, oldContent: string | null, newContent: string | null,
+export type Diff = { change: DiffChangeKind, oldPath: string | null, newPath: string | null, oldContent: string | null, newContent: string | null, 
 /**
  * True when file contents are intentionally omitted (e.g., too large)
  */
-contentOmitted: boolean,
+contentOmitted: boolean, 
 /**
  * Optional precomputed stats for omitted content
  */
@@ -236,7 +236,7 @@ export type UpdateMemberRoleRequest = { role: MemberRole, };
 
 export type UpdateMemberRoleResponse = { user_id: string, role: MemberRole, };
 
-export type MigrationRequest = { organization_id: string,
+export type MigrationRequest = { organization_id: string, 
 /**
  * List of local project IDs to migrate.
  */
@@ -258,7 +258,7 @@ export type TagSearchParams = { search: string | null, };
 
 export type TokenResponse = { access_token: string, expires_at: string | null, };
 
-export type UserSystemInfo = { config: Config, login_status: LoginStatus, environment: Environment,
+export type UserSystemInfo = { config: Config, login_status: LoginStatus, environment: Environment, 
 /**
  * Capabilities supported per executor (e.g., { "CLAUDE_CODE": ["SESSION_FORK"] })
  */
@@ -280,7 +280,7 @@ export type CheckAgentAvailabilityQuery = { executor: BaseCodingAgent, };
 
 export type CurrentUserResponse = { user_id: string, };
 
-export type CreateFollowUpAttempt = { prompt: string, executor_profile_id: ExecutorProfileId, retry_process_id: string | null, force_when_dirty: boolean | null, perform_git_reset: boolean | null,
+export type CreateFollowUpAttempt = { prompt: string, executor_profile_id: ExecutorProfileId, retry_process_id: string | null, force_when_dirty: boolean | null, perform_git_reset: boolean | null, 
 /**
  * When true, ignore the prior agent session and spawn a fresh
  * session for this follow-up (clears the agent's context window).
@@ -310,7 +310,7 @@ export type OpenEditorRequest = { editor_type: string | null, file_path: string 
 
 export type OpenEditorResponse = { url: string | null, };
 
-export type CreateAndStartTaskRequest = { task: CreateTask, executor_profile_id: ExecutorProfileId, repos: Array<WorkspaceRepoInput>, };
+export type CreateAndStartTaskRequest = { task: CreateTask, executor_profile_id: ExecutorProfileId, repos: Array<WorkspaceRepoInput>, reasoning_effort?: EffortLevel | null, };
 
 export type CreatePrApiRequest = { title: string, body: string | null, target_branch: string | null, draft: boolean | null, repo_id: string, auto_generate_description: boolean, };
 
@@ -318,7 +318,7 @@ export type ImageResponse = { id: string, file_path: string, original_name: stri
 
 export type ImageMetadata = { exists: boolean, file_name: string | null, path: string | null, size_bytes: bigint | null, format: string | null, proxy_url: string | null, };
 
-export type CreateTaskAttemptBody = { task_id: string, executor_profile_id: ExecutorProfileId, repos: Array<WorkspaceRepoInput>, };
+export type CreateTaskAttemptBody = { task_id: string, executor_profile_id: ExecutorProfileId, repos: Array<WorkspaceRepoInput>, reasoning_effort?: EffortLevel | null, };
 
 export type WorkspaceRepoInput = { repo_id: string, target_branch: string, };
 
@@ -368,19 +368,19 @@ export type CreateWorkspaceFromPrResponse = { workspace: Workspace, task: Task, 
 
 export type CreateFromPrError = { "type": "pr_not_found" } | { "type": "branch_fetch_failed", message: string, } | { "type": "cli_not_installed", provider: ProviderKind, } | { "type": "auth_failed", message: string, } | { "type": "unsupported_provider" } | { "type": "repo_not_in_project" };
 
-export type RepoBranchStatus = { repo_id: string, repo_name: string, commits_behind: number | null, commits_ahead: number | null, has_uncommitted_changes: boolean | null, head_oid: string | null, uncommitted_count: number | null, untracked_count: number | null, target_branch_name: string, remote_commits_behind: number | null, remote_commits_ahead: number | null, merges: Array<Merge>,
+export type RepoBranchStatus = { repo_id: string, repo_name: string, commits_behind: number | null, commits_ahead: number | null, has_uncommitted_changes: boolean | null, head_oid: string | null, uncommitted_count: number | null, untracked_count: number | null, target_branch_name: string, remote_commits_behind: number | null, remote_commits_ahead: number | null, merges: Array<Merge>, 
 /**
  * True if a `git rebase` is currently in progress in this worktree
  */
-is_rebase_in_progress: boolean,
+is_rebase_in_progress: boolean, 
 /**
  * Current conflict operation if any
  */
-conflict_op: ConflictOp | null,
+conflict_op: ConflictOp | null, 
 /**
  * List of files currently in conflicted (unmerged) state
  */
-conflicted_files: Array<string>,
+conflicted_files: Array<string>, 
 /**
  * True if the target branch is a remote branch (merging not allowed, must use PR)
  */
@@ -390,47 +390,47 @@ export type UpdateWorkspace = { archived: boolean | null, pinned: boolean | null
 
 export type WorkspaceSummaryRequest = { archived: boolean, };
 
-export type WorkspaceSummary = { workspace_id: string,
+export type WorkspaceSummary = { workspace_id: string, 
 /**
  * Session ID of the latest execution process
  */
-latest_session_id: string | null,
+latest_session_id: string | null, 
 /**
  * Is a tool approval currently pending?
  */
-has_pending_approval: boolean,
+has_pending_approval: boolean, 
 /**
  * Number of files with changes
  */
-files_changed: number | null,
+files_changed: number | null, 
 /**
  * Total lines added across all files
  */
-lines_added: number | null,
+lines_added: number | null, 
 /**
  * Total lines removed across all files
  */
-lines_removed: number | null,
+lines_removed: number | null, 
 /**
  * When the latest execution process completed
  */
-latest_process_completed_at?: string,
+latest_process_completed_at?: string, 
 /**
  * Status of the latest execution process
  */
-latest_process_status: ExecutionProcessStatus | null,
+latest_process_status: ExecutionProcessStatus | null, 
 /**
  * Is a dev server currently running?
  */
-has_running_dev_server: boolean,
+has_running_dev_server: boolean, 
 /**
  * Does this workspace have unseen coding agent turns?
  */
-has_unseen_turns: boolean,
+has_unseen_turns: boolean, 
 /**
  * PR status for this workspace (if any PR exists)
  */
-pr_status: MergeStatus | null,
+pr_status: MergeStatus | null, 
 /**
  * Current context token usage for the latest execution process
  */
@@ -470,15 +470,15 @@ export type SendMessageShortcut = "ModifierEnter" | "Enter";
 
 export type GitBranch = { name: string, is_current: boolean, is_remote: boolean, last_commit_date: Date, };
 
-export type QueuedMessage = {
+export type QueuedMessage = { 
 /**
  * The session this message is queued for
  */
-session_id: string,
+session_id: string, 
 /**
  * The follow-up data (message + variant)
  */
-data: DraftFollowUpData,
+data: DraftFollowUpData, 
 /**
  * Timestamp when the message was queued
  */
@@ -496,7 +496,7 @@ export type ExecutorActionType = { "type": "CodingAgentInitialRequest" } & Codin
 
 export type ScriptContext = "SetupScript" | "CleanupScript" | "ArchiveScript" | "DevServer" | "ToolInstallScript";
 
-export type ScriptRequest = { script: string, language: ScriptRequestLanguage, context: ScriptContext,
+export type ScriptRequest = { script: string, language: ScriptRequestLanguage, context: ScriptContext, 
 /**
  * Optional relative path to execute the script in (relative to container_ref).
  * If None, uses the container_ref directory directly.
@@ -509,7 +509,7 @@ export enum BaseCodingAgent { CLAUDE_CODE = "CLAUDE_CODE", AMP = "AMP", GEMINI =
 
 export type CodingAgent = { "CLAUDE_CODE": ClaudeCode } | { "AMP": Amp } | { "GEMINI": Gemini } | { "CODEX": Codex } | { "OPENCODE": Opencode } | { "CURSOR_AGENT": CursorAgent } | { "QWEN_CODE": QwenCode } | { "COPILOT": Copilot } | { "DROID": Droid };
 
-export type SlashCommandDescription = {
+export type SlashCommandDescription = { 
 /**
  * Command name without the leading slash, e.g. `help` for `/help`.
  */
@@ -517,21 +517,21 @@ name: string, description?: string | null, };
 
 export type AvailabilityInfo = { "type": "LOGIN_DETECTED", last_auth_timestamp: bigint, } | { "type": "INSTALLATION_FOUND" } | { "type": "NOT_FOUND" };
 
-export type CommandBuilder = {
+export type CommandBuilder = { 
 /**
  * Base executable command (e.g., "npx -y @anthropic-ai/claude-code@latest")
  */
-base: string,
+base: string, 
 /**
  * Optional parameters to append to the base command
  */
 params: Array<string> | null, };
 
-export type ExecutorProfileId = {
+export type ExecutorProfileId = { 
 /**
  * The executor type (e.g., "CLAUDE_CODE", "AMP")
  */
-executor: BaseCodingAgent,
+executor: BaseCodingAgent, 
 /**
  * Optional variant name (e.g., "PLAN", "ROUTER")
  */
@@ -543,7 +543,7 @@ export type ExecutorConfigs = { executors: { [key in BaseCodingAgent]?: Executor
 
 export enum BaseAgentCapability { SESSION_FORK = "SESSION_FORK", SETUP_HELPER = "SETUP_HELPER", CONTEXT_USAGE = "CONTEXT_USAGE" }
 
-export type ClaudeCode = { append_prompt: AppendPrompt, claude_code_router?: boolean | null, plan?: boolean | null, approvals?: boolean | null, model?: string | null, dangerously_skip_permissions?: boolean | null, disable_api_key?: boolean | null, print_mode?: boolean | null, base_command_override?: string | null, additional_params?: Array<string> | null, env?: { [key in string]?: string } | null, version?: string | null, };
+export type ClaudeCode = { append_prompt: AppendPrompt, claude_code_router?: boolean | null, plan?: boolean | null, approvals?: boolean | null, model?: string | null, reasoning_effort?: EffortLevel | null, dangerously_skip_permissions?: boolean | null, auto_mode?: boolean | null, disable_api_key?: boolean | null, print_mode?: boolean | null, base_command_override?: string | null, additional_params?: Array<string> | null, env?: { [key in string]?: string } | null, version?: string | null, };
 
 export type Gemini = { append_prompt: AppendPrompt, model?: string | null, yolo?: boolean | null, base_command_override?: string | null, additional_params?: Array<string> | null, env?: { [key in string]?: string } | null, version?: string | null, };
 
@@ -565,11 +565,11 @@ export type CursorAgent = { append_prompt: AppendPrompt, force?: boolean | null,
 
 export type Copilot = { append_prompt: AppendPrompt, model?: string | null, allow_all_tools?: boolean | null, allow_tool?: string | null, deny_tool?: string | null, add_dir?: Array<string> | null, disable_mcp_server?: Array<string> | null, base_command_override?: string | null, additional_params?: Array<string> | null, env?: { [key in string]?: string } | null, version?: string | null, };
 
-export type Opencode = { append_prompt: AppendPrompt, model?: string | null, variant?: string | null, agent?: string | null,
+export type Opencode = { append_prompt: AppendPrompt, model?: string | null, variant?: string | null, agent?: string | null, 
 /**
  * Auto-approve agent actions
  */
-auto_approve: boolean,
+auto_approve: boolean, 
 /**
  * Enable auto-compaction when the context length approaches the model's context window limit
  */
@@ -585,33 +585,40 @@ export type DroidReasoningEffort = "none" | "dynamic" | "off" | "low" | "medium"
 
 export type AppendPrompt = string | null;
 
-export type CodingAgentInitialRequest = { prompt: string,
+export enum EffortLevel { low = "low", medium = "medium", high = "high", xhigh = "xhigh", max = "max" }
+
+export type CodingAgentInitialRequest = { prompt: string, 
 /**
  * Executor profile specification
  */
-executor_profile_id: ExecutorProfileId,
+executor_profile_id: ExecutorProfileId, 
+/**
+ * Optional relative path to execute the agent in (relative to container_ref).
+ * If None, uses the container_ref directory directly.
+ */
+working_dir: string | null, 
+/**
+ * Optional reasoning-effort override chosen at task creation. Applied on top
+ * of the resolved profile/variant; ignored by executors that don't support it.
+ */
+reasoning_effort?: EffortLevel | null, };
+
+export type CodingAgentFollowUpRequest = { prompt: string, session_id: string, reset_to_message_id: string | null, 
+/**
+ * Executor profile specification
+ */
+executor_profile_id: ExecutorProfileId, 
 /**
  * Optional relative path to execute the agent in (relative to container_ref).
  * If None, uses the container_ref directory directly.
  */
 working_dir: string | null, };
 
-export type CodingAgentFollowUpRequest = { prompt: string, session_id: string, reset_to_message_id: string | null,
-/**
- * Executor profile specification
- */
-executor_profile_id: ExecutorProfileId,
-/**
- * Optional relative path to execute the agent in (relative to container_ref).
- * If None, uses the container_ref directory directly.
- */
-working_dir: string | null, };
-
-export type ReviewRequest = { executor_profile_id: ExecutorProfileId, context: Array<RepoReviewContext> | null, prompt: string,
+export type ReviewRequest = { executor_profile_id: ExecutorProfileId, context: Array<RepoReviewContext> | null, prompt: string, 
 /**
  * Optional session ID to resume an existing session
  */
-session_id: string | null,
+session_id: string | null, 
 /**
  * Optional relative path to execute the agent in (relative to container_ref).
  */
@@ -627,15 +634,15 @@ export type CommandRunResult = { exit_status: CommandExitStatus | null, output: 
 
 export type NormalizedEntry = { timestamp: string | null, entry_type: NormalizedEntryType, content: string, };
 
-export type NormalizedEntryType = { "type": "user_message" } | { "type": "user_feedback", denied_tool: string, } | { "type": "assistant_message" } | { "type": "tool_use", tool_name: string, action_type: ActionType, status: ToolStatus, } | { "type": "system_message" } | { "type": "error_message", error_type: NormalizedEntryError, } | { "type": "thinking" } | { "type": "loading" } | { "type": "next_action", failed: boolean, execution_processes: number, needs_setup: boolean, } | { "type": "token_usage_info" } & TokenUsageInfo;
+export type NormalizedEntryType = { "type": "user_message" } | { "type": "user_feedback", denied_tool: string, } | { "type": "assistant_message" } | { "type": "tool_use", tool_name: string, action_type: ActionType, status: ToolStatus, } | { "type": "system_message" } | { "type": "system_init", model: string | null, effort: string | null, } | { "type": "error_message", error_type: NormalizedEntryError, } | { "type": "thinking" } | { "type": "loading" } | { "type": "next_action", failed: boolean, execution_processes: number, needs_setup: boolean, } | { "type": "token_usage_info" } & TokenUsageInfo;
 
 export type TokenUsageInfo = { total_tokens: number, model_context_window: number, };
 
-export type FileChange = { "action": "write", content: string, } | { "action": "delete" } | { "action": "rename", new_path: string, } | { "action": "edit",
+export type FileChange = { "action": "write", content: string, } | { "action": "delete" } | { "action": "rename", new_path: string, } | { "action": "edit", 
 /**
  * Unified diff containing file header and hunks.
  */
-unified_diff: string,
+unified_diff: string, 
 /**
  * Whether line number in the hunks are reliable.
  */
@@ -647,7 +654,7 @@ export type TodoItem = { content: string, status: string, priority: string | nul
 
 export type NormalizedEntryError = { "type": "setup_required" } | { "type": "other" };
 
-export type ToolResult = { type: ToolResultValueType,
+export type ToolResult = { type: ToolResultValueType, 
 /**
  * For Markdown, this will be a JSON string; for JSON, a structured value
  */

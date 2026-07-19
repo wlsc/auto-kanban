@@ -10,7 +10,9 @@ use crate::{
     actions::Executable,
     approvals::ExecutorApprovalService,
     env::ExecutionEnv,
-    executors::{BaseCodingAgent, ExecutorError, SpawnedChild, StandardCodingAgentExecutor},
+    executors::{
+        BaseCodingAgent, EffortLevel, ExecutorError, SpawnedChild, StandardCodingAgentExecutor,
+    },
     profile::ExecutorProfileId,
 };
 
@@ -25,6 +27,10 @@ pub struct CodingAgentInitialRequest {
     /// If None, uses the container_ref directory directly.
     #[serde(default)]
     pub working_dir: Option<String>,
+    /// Optional reasoning-effort override chosen at task creation. Applied on top
+    /// of the resolved profile/variant; ignored by executors that don't support it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<EffortLevel>,
 }
 
 impl CodingAgentInitialRequest {
@@ -66,6 +72,10 @@ impl Executable for CodingAgentInitialRequest {
                 .ok_or(ExecutorError::UnknownExecutorType(
                     executor_profile_id.to_string(),
                 ))?;
+
+            if let Some(effort) = self.reasoning_effort {
+                agent.apply_reasoning_effort(effort);
+            }
 
             agent.use_approvals(approvals.clone());
 

@@ -137,7 +137,11 @@ pub async fn get_workspace_summaries(
     let mut token_usage_map: HashMap<Uuid, TokenUsageInfo> = HashMap::new();
     for (workspace_id, info) in &latest_processes {
         if info.status == ExecutionProcessStatus::Running {
-            if let Some(store) = deployment.container().get_msg_store_by_id(&info.execution_process_id).await {
+            if let Some(store) = deployment
+                .container()
+                .get_msg_store_by_id(&info.execution_process_id)
+                .await
+            {
                 let history = store.get_history();
                 if let Some(usage) = extract_token_usage_from_msg_store(&history) {
                     token_usage_map.insert(*workspace_id, usage);
@@ -218,16 +222,16 @@ fn extract_token_usage_from_msg_store(history: &[LogMsg]) -> Option<TokenUsageIn
                 if value.get("type").and_then(|t| t.as_str()) != Some("NORMALIZED_ENTRY") {
                     continue;
                 }
-                let Some(entry_type) = value
-                    .get("content")
-                    .and_then(|c| c.get("entry_type"))
+                let Some(entry_type) = value.get("content").and_then(|c| c.get("entry_type"))
                 else {
                     continue;
                 };
                 if entry_type.get("type").and_then(|t| t.as_str()) == Some("token_usage_info") {
                     if let (Some(total), Some(window)) = (
                         entry_type.get("total_tokens").and_then(|v| v.as_u64()),
-                        entry_type.get("model_context_window").and_then(|v| v.as_u64()),
+                        entry_type
+                            .get("model_context_window")
+                            .and_then(|v| v.as_u64()),
                     ) {
                         return Some(TokenUsageInfo {
                             total_tokens: total as u32,

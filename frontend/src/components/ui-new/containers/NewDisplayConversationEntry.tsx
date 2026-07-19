@@ -331,6 +331,16 @@ function NewDisplayConversationEntry(props: Props) {
         <SystemMessageEntry
           content={entry.content}
           expansionKey={expansionKey}
+          effort={null}
+        />
+      );
+
+    case 'system_init':
+      return (
+        <SystemMessageEntry
+          content={entry.content}
+          expansionKey={expansionKey}
+          effort={entryType.effort}
         />
       );
 
@@ -714,9 +724,11 @@ function SubagentEntry({
 function SystemMessageEntry({
   content,
   expansionKey,
+  effort,
 }: {
   content: string;
   expansionKey: string;
+  effort: string | null;
 }) {
   const [expanded, toggle] = usePersistedExpanded(
     `system:${expansionKey}`,
@@ -728,6 +740,7 @@ function SystemMessageEntry({
       content={content}
       expanded={expanded}
       onToggle={toggle}
+      effort={effort}
     />
   );
 }

@@ -170,6 +170,9 @@ impl StandardCodingAgentExecutor for Droid {
             msg_store.clone(),
             current_dir,
             EntryIndexProvider::start_from(&msg_store),
+            self.reasoning_effort
+                .as_ref()
+                .map(|e| e.as_ref().to_string()),
         );
     }
 

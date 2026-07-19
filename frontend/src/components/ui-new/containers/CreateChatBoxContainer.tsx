@@ -5,9 +5,18 @@ import { useCreateMode } from '@/contexts/CreateModeContext';
 import { useUserSystem } from '@/components/ConfigProvider';
 import { useCreateWorkspace } from '@/hooks/useCreateWorkspace';
 import { useCreateAttachments } from '@/hooks/useCreateAttachments';
-import { getVariantOptions, areProfilesEqual } from '@/utils/executor';
+import {
+  getVariantOptions,
+  getEffortOptions,
+  areProfilesEqual,
+} from '@/utils/executor';
 import { splitMessageToTitleDescription } from '@/utils/string';
-import type { ExecutorProfileId, BaseCodingAgent, Repo } from 'shared/types';
+import type {
+  ExecutorProfileId,
+  BaseCodingAgent,
+  EffortLevel,
+  Repo,
+} from 'shared/types';
 import { CreateChatBox } from '../primitives/CreateChatBox';
 import { SettingsDialog } from '../dialogs/SettingsDialog';
 import { CreateModeRepoPickerBar } from './CreateModeRepoPickerBar';
@@ -45,6 +54,9 @@ export function CreateChatBoxContainer({
   const hasSelectedRepos = repos.length > 0;
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [selectedEffort, setSelectedEffort] = useState<EffortLevel | null>(
+    null
+  );
   const [hasInitializedStep, setHasInitializedStep] = useState(false);
   const [isSelectingRepos, setIsSelectingRepos] = useState(true);
 
@@ -113,6 +125,20 @@ export function CreateChatBoxContainer({
     () => getVariantOptions(effectiveProfile?.executor, profiles),
     [effectiveProfile?.executor, profiles]
   );
+
+  // Reasoning-effort options for the current executor (empty when unsupported)
+  const effortOptions = useMemo(
+    () => getEffortOptions(effectiveProfile?.executor),
+    [effectiveProfile?.executor]
+  );
+
+  // Drop a selected effort that the current executor doesn't offer
+  // (e.g. after switching from Claude 'max' to Droid).
+  useEffect(() => {
+    if (selectedEffort && !effortOptions.includes(selectedEffort)) {
+      setSelectedEffort(null);
+    }
+  }, [effortOptions, selectedEffort]);
 
   // Detect if user has changed from their saved default
   const hasChangedFromDefault = useMemo(() => {
@@ -236,6 +262,7 @@ export function CreateChatBoxContainer({
           image_ids: getImageIds(),
         },
         executor_profile_id: effectiveProfile,
+        reasoning_effort: selectedEffort,
         repos: repos.map((r) => ({
           repo_id: r.id,
           target_branch: targetBranches[r.id] ?? 'main',
@@ -267,6 +294,7 @@ export function CreateChatBoxContainer({
     hasChangedFromDefault,
     updateAndSaveConfig,
     linkedIssue,
+    selectedEffort,
   ]);
 
   // Determine error to display
@@ -341,6 +369,16 @@ export function CreateChatBoxContainer({
                           options: variantOptions,
                           onChange: handleVariantChange,
                           onCustomise: handleCustomise,
+                        }
+                      : undefined
+                  }
+                  effort={
+                    effortOptions.length > 0
+                      ? {
+                          selected: selectedEffort,
+                          options: effortOptions,
+                          onChange: (value) =>
+                            setSelectedEffort(value as EffortLevel | null),
                         }
                       : undefined
                   }

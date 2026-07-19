@@ -3,6 +3,7 @@ import { attemptsApi } from '@/lib/api';
 import { workspaceSummaryKeys } from '@/components/ui-new/hooks/useWorkspaces';
 import type {
   ExecutorProfileId,
+  EffortLevel,
   WorkspaceRepoInput,
   Workspace,
 } from 'shared/types';
@@ -10,6 +11,7 @@ import type {
 type CreateAttemptArgs = {
   profile: ExecutorProfileId;
   repos: WorkspaceRepoInput[];
+  reasoningEffort?: EffortLevel | null;
 };
 
 type UseAttemptCreationArgs = {
@@ -24,10 +26,11 @@ export function useAttemptCreation({
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: ({ profile, repos }: CreateAttemptArgs) =>
+    mutationFn: ({ profile, repos, reasoningEffort }: CreateAttemptArgs) =>
       attemptsApi.create({
         task_id: taskId,
         executor_profile_id: profile,
+        reasoning_effort: reasoningEffort ?? null,
         repos,
       }),
     onSuccess: (newAttempt: Workspace) => {

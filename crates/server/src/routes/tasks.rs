@@ -20,7 +20,7 @@ use db::models::{
     workspace_repo::{CreateWorkspaceRepo, WorkspaceRepo},
 };
 use deployment::Deployment;
-use executors::profile::ExecutorProfileId;
+use executors::{executors::EffortLevel, profile::ExecutorProfileId};
 use futures_util::{SinkExt, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use services::services::{container::ContainerService, workspace_manager::WorkspaceManager};
@@ -130,6 +130,8 @@ pub struct CreateAndStartTaskRequest {
     pub task: CreateTask,
     pub executor_profile_id: ExecutorProfileId,
     pub repos: Vec<WorkspaceRepoInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<EffortLevel>,
 }
 
 pub async fn create_task_and_start(
@@ -198,7 +200,11 @@ pub async fn create_task_and_start(
 
     let is_attempt_running = deployment
         .container()
-        .start_workspace(&workspace, payload.executor_profile_id.clone())
+        .start_workspace(
+            &workspace,
+            payload.executor_profile_id.clone(),
+            payload.reasoning_effort,
+        )
         .await
         .inspect_err(|err| tracing::error!("Failed to start task attempt: {}", err))
         .is_ok();

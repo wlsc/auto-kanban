@@ -30,6 +30,7 @@ import type { LocalImageMetadata } from '@/components/ui/wysiwyg/context/task-at
 import BranchSelector from '@/components/tasks/BranchSelector';
 import RepoBranchSelector from '@/components/tasks/RepoBranchSelector';
 import { ExecutorProfileSelector } from '@/components/settings';
+import { EffortSelector } from '@/components/tasks/EffortSelector';
 import { useUserSystem } from '@/components/ConfigProvider';
 import {
   useTaskImages,
@@ -49,6 +50,7 @@ import { cn } from '@/lib/utils';
 import type {
   TaskStatus,
   ExecutorProfileId,
+  EffortLevel,
   ImageResponse,
 } from 'shared/types';
 
@@ -80,6 +82,7 @@ type TaskFormValues = {
   description: string;
   status: TaskStatus;
   executorProfileId: ExecutorProfileId | null;
+  reasoningEffort: EffortLevel | null;
   repoBranches: RepoBranch[];
   autoStart: boolean;
 };
@@ -136,6 +139,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           description: props.task.description || '',
           status: props.task.status,
           executorProfileId: baseProfile,
+          reasoningEffort: null,
           repoBranches: defaultRepoBranches,
           autoStart: false,
         };
@@ -146,6 +150,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           description: props.initialTask.description || '',
           status: 'todo',
           executorProfileId: baseProfile,
+          reasoningEffort: null,
           repoBranches: defaultRepoBranches,
           autoStart: true,
         };
@@ -158,6 +163,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           description: '',
           status: 'todo',
           executorProfileId: baseProfile,
+          reasoningEffort: null,
           repoBranches: defaultRepoBranches,
           autoStart: true,
         };
@@ -204,6 +210,7 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
           {
             task,
             executor_profile_id: value.executorProfileId!,
+            reasoning_effort: value.reasoningEffort,
             repos,
           },
           { onSuccess: () => modal.remove() }
@@ -540,6 +547,30 @@ const TaskFormDialogImpl = NiceModal.create<TaskFormDialogProps>((props) => {
                           />
                         )}
                       </form.Field>
+                      <form.Subscribe
+                        selector={(state) =>
+                          state.values.executorProfileId?.executor
+                        }
+                      >
+                        {(executor) => (
+                          <form.Field name="reasoningEffort">
+                            {(field) => (
+                              <EffortSelector
+                                executor={executor}
+                                selectedEffort={field.state.value}
+                                onChange={(effort) =>
+                                  field.handleChange(effort)
+                                }
+                                disabled={
+                                  isSubmitting || !autoStartField.state.value
+                                }
+                                showLabel={false}
+                                className="flex-1 min-w-0"
+                              />
+                            )}
+                          </form.Field>
+                        )}
+                      </form.Subscribe>
                       {isSingleRepo && (
                         <form.Field name="repoBranches">
                           {(field) => {

@@ -208,6 +208,7 @@ pub enum PermissionMode {
     AcceptEdits,
     Plan,
     BypassPermissions,
+    Auto,
 }
 
 impl PermissionMode {
@@ -217,6 +218,7 @@ impl PermissionMode {
             Self::AcceptEdits => "acceptEdits",
             Self::Plan => "plan",
             Self::BypassPermissions => "bypassPermissions",
+            Self::Auto => "auto",
         }
     }
 }

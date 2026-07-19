@@ -40,9 +40,7 @@ pub async fn launch_codex_review(
 
     client.register_session(&thread_id).await?;
 
-    client
-        .start_review(thread_id, review_target)
-        .await?;
+    client.start_review(thread_id, review_target).await?;
 
     Ok(())
 }

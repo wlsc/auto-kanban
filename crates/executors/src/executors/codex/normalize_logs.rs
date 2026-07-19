@@ -447,103 +447,106 @@ pub fn normalize_logs(msg_store: Arc<MsgStore>, worktree_path: &Path) {
                             }
                         }
                     }
-                    ServerNotification::ItemCompleted(item_completed) => match item_completed.item {
-                        V2ThreadItem::AgentMessage { text, .. } => {
-                            state.thinking = None;
-                            let (entry, index, is_new) = state.assistant_message(text);
-                            upsert_normalized_entry(&msg_store, index, entry, is_new);
-                            state.assistant = None;
-                        }
-                        V2ThreadItem::Reasoning {
-                            summary, content, ..
-                        } => {
-                            state.assistant = None;
-                            let text = if !summary.is_empty() {
-                                summary.join("\n")
-                            } else {
-                                content.join("\n")
-                            };
-                            if !text.is_empty() {
-                                let (entry, index, is_new) = state.thinking(text);
-                                upsert_normalized_entry(&msg_store, index, entry, is_new);
+                    ServerNotification::ItemCompleted(item_completed) => {
+                        match item_completed.item {
+                            V2ThreadItem::AgentMessage { text, .. } => {
                                 state.thinking = None;
+                                let (entry, index, is_new) = state.assistant_message(text);
+                                upsert_normalized_entry(&msg_store, index, entry, is_new);
+                                state.assistant = None;
                             }
-                        }
-                        V2ThreadItem::CommandExecution {
-                            id,
-                            command,
-                            aggregated_output,
-                            exit_code,
-                            status,
-                            ..
-                        } => {
-                            if let Some(mut command_state) = state.commands.remove(&id) {
-                                if command_state.command.is_empty() {
-                                    command_state.command = command;
+                            V2ThreadItem::Reasoning {
+                                summary, content, ..
+                            } => {
+                                state.assistant = None;
+                                let text = if !summary.is_empty() {
+                                    summary.join("\n")
+                                } else {
+                                    content.join("\n")
+                                };
+                                if !text.is_empty() {
+                                    let (entry, index, is_new) = state.thinking(text);
+                                    upsert_normalized_entry(&msg_store, index, entry, is_new);
+                                    state.thinking = None;
                                 }
-                                command_state.formatted_output = aggregated_output;
-                                command_state.exit_code = exit_code;
-                                command_state.awaiting_approval = false;
-                                command_state.status =
-                                    map_v2_command_status(status, command_state.exit_code);
-                                if let Some(index) = command_state.index {
-                                    replace_normalized_entry(
+                            }
+                            V2ThreadItem::CommandExecution {
+                                id,
+                                command,
+                                aggregated_output,
+                                exit_code,
+                                status,
+                                ..
+                            } => {
+                                if let Some(mut command_state) = state.commands.remove(&id) {
+                                    if command_state.command.is_empty() {
+                                        command_state.command = command;
+                                    }
+                                    command_state.formatted_output = aggregated_output;
+                                    command_state.exit_code = exit_code;
+                                    command_state.awaiting_approval = false;
+                                    command_state.status =
+                                        map_v2_command_status(status, command_state.exit_code);
+                                    if let Some(index) = command_state.index {
+                                        replace_normalized_entry(
+                                            &msg_store,
+                                            index,
+                                            command_state.to_normalized_entry(),
+                                        );
+                                    }
+                                }
+                            }
+                            V2ThreadItem::CollabAgentToolCall {
+                                id,
+                                status,
+                                prompt,
+                                receiver_thread_ids,
+                                agents_states,
+                                ..
+                            } => {
+                                if !state.processed_collab_calls.insert(id) {
+                                    continue;
+                                }
+
+                                let mut emitted = false;
+                                for (thread_id, agent_state) in agents_states {
+                                    emitted = true;
+                                    let status = collab_v2_agent_state_to_agent_status(agent_state);
+                                    add_collab_task_entry(
                                         &msg_store,
-                                        index,
-                                        command_state.to_normalized_entry(),
+                                        &entry_index,
+                                        collab_description_from_prompt_and_identity(
+                                            prompt.as_deref().unwrap_or_default(),
+                                            None,
+                                            None,
+                                        ),
+                                        Some(thread_id.to_string()),
+                                        status,
+                                    );
+                                }
+
+                                if !emitted {
+                                    let fallback_status =
+                                        collab_v2_tool_call_status_to_agent_status(
+                                            status,
+                                            receiver_thread_ids.len(),
+                                        );
+                                    add_collab_task_entry(
+                                        &msg_store,
+                                        &entry_index,
+                                        collab_description_from_prompt_and_identity(
+                                            prompt.as_deref().unwrap_or_default(),
+                                            None,
+                                            None,
+                                        ),
+                                        receiver_thread_ids.first().map(ToString::to_string),
+                                        fallback_status,
                                     );
                                 }
                             }
+                            _ => {}
                         }
-                        V2ThreadItem::CollabAgentToolCall {
-                            id,
-                            status,
-                            prompt,
-                            receiver_thread_ids,
-                            agents_states,
-                            ..
-                        } => {
-                            if !state.processed_collab_calls.insert(id) {
-                                continue;
-                            }
-
-                            let mut emitted = false;
-                            for (thread_id, agent_state) in agents_states {
-                                emitted = true;
-                                let status = collab_v2_agent_state_to_agent_status(agent_state);
-                                add_collab_task_entry(
-                                    &msg_store,
-                                    &entry_index,
-                                    collab_description_from_prompt_and_identity(
-                                        prompt.as_deref().unwrap_or_default(),
-                                        None,
-                                        None,
-                                    ),
-                                    Some(thread_id.to_string()),
-                                    status,
-                                );
-                            }
-
-                            if !emitted {
-                                let fallback_status = collab_v2_tool_call_status_to_agent_status(
-                                    status,
-                                    receiver_thread_ids.len(),
-                                );
-                                add_collab_task_entry(
-                                    &msg_store,
-                                    &entry_index,
-                                    collab_description_from_prompt_and_identity(
-                                        prompt.as_deref().unwrap_or_default(),
-                                        None,
-                                        None,
-                                    ),
-                                    receiver_thread_ids.first().map(ToString::to_string),
-                                    fallback_status,
-                                );
-                            }
-                        }
-                        _ => {}
-                    },
+                    }
                     _ => {}
                 }
                 continue;
@@ -1316,11 +1319,9 @@ fn handle_jsonrpc_response(
         return;
     }
 
-    if let Ok(response) =
-        serde_json::from_value::<codex_app_server_protocol::ThreadResumeResponse>(
-            response.result.clone(),
-        )
-    {
+    if let Ok(response) = serde_json::from_value::<codex_app_server_protocol::ThreadResumeResponse>(
+        response.result.clone(),
+    ) {
         msg_store.push_session_id(response.thread.id);
         handle_model_params(
             response.model,
@@ -1337,10 +1338,10 @@ fn handle_model_params(
     msg_store: &Arc<MsgStore>,
     entry_index: &EntryIndexProvider,
 ) {
-    let mut params = vec![];
-    params.push(format!("model: {model}"));
-    if let Some(reasoning_effort) = reasoning_effort {
-        params.push(format!("reasoning effort: {reasoning_effort}"));
+    let effort = reasoning_effort.map(|e| e.to_string());
+    let mut params = vec![format!("model: {model}")];
+    if let Some(effort) = &effort {
+        params.push(format!("reasoning effort: {effort}"));
     }
 
     add_normalized_entry(
@@ -1348,7 +1349,10 @@ fn handle_model_params(
         entry_index,
         NormalizedEntry {
             timestamp: None,
-            entry_type: NormalizedEntryType::SystemMessage,
+            entry_type: NormalizedEntryType::SystemInit {
+                model: Some(model),
+                effort,
+            },
             content: params.join("  ").to_string(),
             metadata: None,
         },
@@ -1404,7 +1408,11 @@ fn collab_description_from_prompt_and_identity(
     collab_description_from_identity("unknown", nickname, role)
 }
 
-fn collab_description_from_identity(thread_id: &str, nickname: Option<&str>, role: Option<&str>) -> String {
+fn collab_description_from_identity(
+    thread_id: &str,
+    nickname: Option<&str>,
+    role: Option<&str>,
+) -> String {
     if let Some(name) = nickname.filter(|value| !value.trim().is_empty()) {
         return format!("Subagent {name}");
     }
@@ -1436,15 +1444,19 @@ fn collab_status_to_tool_result(status: &AgentStatus) -> Option<ToolResult> {
     }
 }
 
-fn collab_v2_agent_state_to_agent_status(status: codex_app_server_protocol::CollabAgentState) -> AgentStatus {
+fn collab_v2_agent_state_to_agent_status(
+    status: codex_app_server_protocol::CollabAgentState,
+) -> AgentStatus {
     match status.status {
         V2CollabAgentStatus::PendingInit => AgentStatus::PendingInit,
         V2CollabAgentStatus::Running => AgentStatus::Running,
         V2CollabAgentStatus::Interrupted => AgentStatus::Interrupted,
         V2CollabAgentStatus::Completed => AgentStatus::Completed(status.message),
-        V2CollabAgentStatus::Errored => {
-            AgentStatus::Errored(status.message.unwrap_or_else(|| "Subagent failed".to_string()))
-        }
+        V2CollabAgentStatus::Errored => AgentStatus::Errored(
+            status
+                .message
+                .unwrap_or_else(|| "Subagent failed".to_string()),
+        ),
         V2CollabAgentStatus::Shutdown => AgentStatus::Shutdown,
         V2CollabAgentStatus::NotFound => AgentStatus::NotFound,
     }

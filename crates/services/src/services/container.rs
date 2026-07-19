@@ -35,7 +35,7 @@ use executors::{
         coding_agent_initial::CodingAgentInitialRequest,
         script::{ScriptContext, ScriptRequest, ScriptRequestLanguage},
     },
-    executors::{ExecutorError, StandardCodingAgentExecutor},
+    executors::{EffortLevel, ExecutorError, StandardCodingAgentExecutor},
     logs::{NormalizedEntry, NormalizedEntryError, NormalizedEntryType, utils::ConversationPatch},
     profile::ExecutorProfileId,
 };
@@ -962,8 +962,11 @@ pub trait ContainerService {
                     }
                     #[cfg(not(feature = "qa-mode"))]
                     {
-                        let executor = ExecutorConfigs::get_cached()
+                        let mut executor = ExecutorConfigs::get_cached()
                             .get_coding_agent_or_default(&request.executor_profile_id);
+                        if let Some(effort) = request.reasoning_effort {
+                            executor.apply_reasoning_effort(effort);
+                        }
                         executor.normalize_logs(
                             temp_store.clone(),
                             &request.effective_dir(&current_dir),
@@ -1114,6 +1117,7 @@ pub trait ContainerService {
         &self,
         workspace: &Workspace,
         executor_profile_id: ExecutorProfileId,
+        reasoning_effort: Option<EffortLevel>,
     ) -> Result<ExecutionProcess, ContainerError> {
         // Create container
         self.create(workspace).await?;
@@ -1160,6 +1164,7 @@ pub trait ContainerService {
                 prompt,
                 executor_profile_id: executor_profile_id.clone(),
                 working_dir,
+                reasoning_effort,
             }),
             cleanup_action.map(Box::new),
         );
@@ -1352,21 +1357,25 @@ pub trait ContainerService {
         let workspace_root = self.workspace_to_current_dir(workspace);
         #[cfg_attr(feature = "qa-mode", allow(unused_variables))]
         if let Some(msg_store) = self.get_msg_store_by_id(&execution_process.id).await
-            && let Some((executor_profile_id, working_dir)) = match executor_action.typ() {
-                ExecutorActionType::CodingAgentInitialRequest(request) => Some((
-                    &request.executor_profile_id,
-                    request.effective_dir(&workspace_root),
-                )),
-                ExecutorActionType::CodingAgentFollowUpRequest(request) => Some((
-                    &request.executor_profile_id,
-                    request.effective_dir(&workspace_root),
-                )),
-                ExecutorActionType::ReviewRequest(request) => Some((
-                    &request.executor_profile_id,
-                    request.effective_dir(&workspace_root),
-                )),
-                _ => None,
-            }
+            && let Some((executor_profile_id, working_dir, reasoning_effort)) =
+                match executor_action.typ() {
+                    ExecutorActionType::CodingAgentInitialRequest(request) => Some((
+                        &request.executor_profile_id,
+                        request.effective_dir(&workspace_root),
+                        request.reasoning_effort,
+                    )),
+                    ExecutorActionType::CodingAgentFollowUpRequest(request) => Some((
+                        &request.executor_profile_id,
+                        request.effective_dir(&workspace_root),
+                        None,
+                    )),
+                    ExecutorActionType::ReviewRequest(request) => Some((
+                        &request.executor_profile_id,
+                        request.effective_dir(&workspace_root),
+                        None,
+                    )),
+                    _ => None,
+                }
         {
             #[cfg(feature = "qa-mode")]
             {
@@ -1375,9 +1384,12 @@ pub trait ContainerService {
             }
             #[cfg(not(feature = "qa-mode"))]
             {
-                if let Some(executor) =
+                if let Some(mut executor) =
                     ExecutorConfigs::get_cached().get_coding_agent(executor_profile_id)
                 {
+                    if let Some(effort) = reasoning_effort {
+                        executor.apply_reasoning_effort(effort);
+                    }
                     executor.normalize_logs(msg_store, &working_dir);
                 } else {
                     tracing::error!(

@@ -3,7 +3,7 @@
     "CLAUDE_CODE": {
       "DEFAULT": {
         "CLAUDE_CODE": {
-          "dangerously_skip_permissions": true
+          "auto_mode": true
         }
       },
       "PLAN": {

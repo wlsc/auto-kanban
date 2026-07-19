@@ -38,7 +38,7 @@ use executors::{
         ExecutorAction, ExecutorActionType,
         script::{ScriptContext, ScriptRequest, ScriptRequestLanguage},
     },
-    executors::{CodingAgent, ExecutorError},
+    executors::{CodingAgent, EffortLevel, ExecutorError},
     profile::{ExecutorConfigs, ExecutorProfileId},
 };
 use git::{ConflictOp, GitCliError, GitService, GitServiceError};
@@ -202,6 +202,8 @@ pub struct CreateTaskAttemptBody {
     pub task_id: Uuid,
     pub executor_profile_id: ExecutorProfileId,
     pub repos: Vec<WorkspaceRepoInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<EffortLevel>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ts_rs::TS)]
@@ -283,7 +285,11 @@ pub async fn create_task_attempt(
     WorkspaceRepo::create_many(pool, workspace.id, &workspace_repos).await?;
     if let Err(err) = deployment
         .container()
-        .start_workspace(&workspace, executor_profile_id.clone())
+        .start_workspace(
+            &workspace,
+            executor_profile_id.clone(),
+            payload.reasoning_effort,
+        )
         .await
     {
         tracing::error!("Failed to start task attempt: {}", err);
@@ -1309,9 +1315,7 @@ pub async fn get_task_attempt_children(
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<TaskRelationships>>, StatusCode> {
     match Task::find_relationships_for_workspace(&deployment.db().pool, &workspace).await {
-        Ok(relationships) => {
-            Ok(ResponseJson(ApiResponse::success(relationships)))
-        }
+        Ok(relationships) => Ok(ResponseJson(ApiResponse::success(relationships))),
         Err(e) => {
             tracing::error!(
                 "Failed to fetch relationships for task attempt {}: {}",
@@ -1545,9 +1549,7 @@ pub async fn gh_cli_setup_handler(
     State(deployment): State<DeploymentImpl>,
 ) -> Result<ResponseJson<ApiResponse<ExecutionProcess, GhCliSetupError>>, ApiError> {
     match gh_cli_setup::run_gh_cli_setup(&deployment, &workspace).await {
-        Ok(execution_process) => {
-            Ok(ResponseJson(ApiResponse::success(execution_process)))
-        }
+        Ok(execution_process) => Ok(ResponseJson(ApiResponse::success(execution_process))),
         Err(ApiError::Executor(ExecutorError::ExecutableNotFound { program }))
             if program == "brew" =>
         {

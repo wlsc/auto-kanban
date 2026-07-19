@@ -5,6 +5,44 @@ import type {
   ExecutorProfileId,
   ExecutionProcess,
 } from 'shared/types';
+import { EffortLevel } from 'shared/types';
+
+/**
+ * Reasoning-effort options offered per executor, expressed in the shared
+ * {@link EffortLevel} scale. The backend clamps values the executor can't
+ * represent (e.g. Codex has no `max`, Droid tops out at `high`), so we only
+ * surface levels that map to a distinct setting. Executors without a
+ * reasoning-effort concept are omitted and render no selector.
+ */
+const EFFORT_OPTIONS_BY_EXECUTOR: Partial<
+  Record<BaseCodingAgent, EffortLevel[]>
+> = {
+  CLAUDE_CODE: [
+    EffortLevel.low,
+    EffortLevel.medium,
+    EffortLevel.high,
+    EffortLevel.xhigh,
+    EffortLevel.max,
+  ],
+  CODEX: [
+    EffortLevel.low,
+    EffortLevel.medium,
+    EffortLevel.high,
+    EffortLevel.xhigh,
+  ],
+  DROID: [EffortLevel.low, EffortLevel.medium, EffortLevel.high],
+};
+
+/**
+ * Get the reasoning-effort options for an executor, or an empty array when the
+ * executor doesn't support configuring effort.
+ */
+export function getEffortOptions(
+  executor: BaseCodingAgent | null | undefined
+): EffortLevel[] {
+  if (!executor) return [];
+  return EFFORT_OPTIONS_BY_EXECUTOR[executor] ?? [];
+}
 
 /**
  * Compare two ExecutorProfileIds for equality.
