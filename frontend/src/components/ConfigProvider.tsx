@@ -67,6 +67,16 @@ export function UserSystemProvider({ children }: UserSystemProviderProps) {
     queryKey: ['user-system'],
     queryFn: configApi.getConfig,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    // /api/info can transiently fail while the backend restarts (dev watch) or
+    // before the executor cache is ready. If it does, `executors` resolves to
+    // null and the agent selector silently disappears. Retry the request and
+    // keep polling until we actually have executors so the state self-heals
+    // without a full page reload.
+    retry: true,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15000),
+    refetchOnReconnect: true,
+    refetchInterval: (query) =>
+      query.state.data?.executors ? false : 3000,
   });
 
   const config = userSystemInfo?.config || null;
